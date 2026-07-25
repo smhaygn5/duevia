@@ -52,6 +52,6 @@ funds.
 
 ## Links
 
-- Live product: add the Sites production URL after deployment
+- Live product: `https://duevia-arc-testnet.celiluyanikoglu.chatgpt.site`
 - Arc explorer: add the factory address after testnet deployment
 - Repository: add the public repository URL when published

@@ -26,6 +26,9 @@ USDC stage by stage.
 Duevia contracts are unaudited and intended only for Arc Testnet. Do not use
 this release with production funds.
 
+Private production deployment:
+`https://duevia-arc-testnet.celiluyanikoglu.chatgpt.site`
+
 ## Local development
 
 Requirements: Node.js 22.13 or newer and npm.
