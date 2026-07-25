@@ -37,6 +37,11 @@ type UploadedFile = {
   message?: string;
 };
 
+const uploadLimitBytes = process.env.NEXT_PUBLIC_VERCEL_URL
+  ? 4 * 1024 * 1024
+  : 10 * 1024 * 1024;
+const uploadLimitLabel = process.env.NEXT_PUBLIC_VERCEL_URL ? "4 MB" : "10 MB";
+
 function fileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -82,6 +87,19 @@ export function SubmissionForm({ agreementRef }: { agreementRef: string }) {
     setError(null);
     for (const file of selected) {
       const localId = crypto.randomUUID();
+      if (file.size > uploadLimitBytes) {
+        setFiles((current) => [
+          ...current,
+          {
+            id: localId,
+            name: file.name,
+            size: file.size,
+            status: "error",
+            message: `Files on this deployment must be ${uploadLimitLabel} or smaller.`,
+          },
+        ]);
+        continue;
+      }
       setFiles((current) => [
         ...current,
         { id: localId, name: file.name, size: file.size, status: "uploading" },
@@ -360,7 +378,9 @@ export function SubmissionForm({ agreementRef }: { agreementRef: string }) {
               >
                 <UploadCloud size={28} />
                 <strong>Choose protected deliverables</strong>
-                <span>PDF, ZIP, PNG, JPG, WEBP, TXT or CSV · max 10 MB</span>
+                <span>
+                  PDF, ZIP, PNG, JPG, WEBP, TXT or CSV · max {uploadLimitLabel}
+                </span>
               </button>
               <input
                 className="sr-only"

@@ -14,6 +14,9 @@ Verification date: 2026-07-25
 | Solidity tests | 9 / 9 passed |
 | Arc Testnet factory runtime code | Confirmed |
 | Factory USDC binding | Confirmed |
+| Vercel production build | Passed |
+| Public Vercel landing page | HTTP 200 |
+| Vercel-to-Duevia API bridge | Confirmed |
 
 ## Security checks
 
@@ -49,3 +52,13 @@ Verification date: 2026-07-25
 The hosted application now uses this confirmed factory. Contracts remain
 unaudited and are permitted only for Arc Testnet use; no production funds are
 permitted.
+
+## Vercel production
+
+- Public product: `https://duevia.vercel.app`
+- Arc health route: confirmed on the public Vercel domain
+- Backend bridge: authenticated server-to-server access; the bearer token is
+  stored only as a sensitive Vercel Production environment variable
+- Public access: production only; Vercel preview deployments remain protected
+- Upload limit: 4 MB on Vercel to remain below the platform's 4.5 MB Function
+  request limit

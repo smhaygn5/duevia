@@ -28,8 +28,11 @@ USDC stage by stage.
 Duevia contracts are unaudited and intended only for Arc Testnet. Do not use
 this release with production funds.
 
-Private production deployment:
-`https://duevia-arc-testnet.celiluyanikoglu.chatgpt.site`
+Production deployment:
+`https://duevia.vercel.app`
+
+The Vercel surface runs the public Next.js application and securely proxies
+authenticated API traffic to Duevia's private D1/R2 backend.
 
 ## Local development
 
@@ -81,3 +84,4 @@ recorded in `contracts/deployments/arc-testnet.json` and can be inspected on
 - `docs/phase-5-verification.md`
 - `docs/demo-script.md`
 - `docs/builder-submission.md`
+- `docs/vercel-deployment.md`

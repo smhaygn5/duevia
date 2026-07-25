@@ -1,14 +1,20 @@
-import { env } from "cloudflare:workers";
-
 type DueviaBindings = {
   DB?: D1Database;
   DELIVERABLES?: R2Bucket;
 };
 
 let schemaReady: Promise<void> | undefined;
+let runtimeBindings: DueviaBindings | undefined;
+
+export function setRuntimeBindings(bindings: DueviaBindings) {
+  runtimeBindings = bindings;
+}
 
 export function getBindings() {
-  return env as unknown as DueviaBindings;
+  if (!runtimeBindings) {
+    throw new Error("Duevia runtime bindings are unavailable.");
+  }
+  return runtimeBindings;
 }
 
 export function getRawDb() {

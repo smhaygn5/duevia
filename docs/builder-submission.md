@@ -52,7 +52,7 @@ funds.
 
 ## Links
 
-- Live product: `https://duevia-arc-testnet.celiluyanikoglu.chatgpt.site`
+- Live product: `https://duevia.vercel.app`
 - Arc explorer:
   `https://testnet.arcscan.app/address/0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
 - Deployment transaction:
