@@ -12,6 +12,8 @@ Verification date: 2026-07-25
 | Production build | Passed |
 | Rendered page tests | 4 / 4 passed |
 | Solidity tests | 9 / 9 passed |
+| Arc Testnet factory runtime code | Confirmed |
+| Factory USDC binding | Confirmed |
 
 ## Security checks
 
@@ -30,9 +32,20 @@ Verification date: 2026-07-25
   access checks, `no-store`, and `nosniff`.
 - The client and provider cannot execute each other's contract actions.
 
-## Manual testnet gate
+## Arc Testnet deployment
 
-The final factory deployment needs a funded Arc Testnet-only deployer wallet.
-Until `NEXT_PUBLIC_DUEVIA_FACTORY_ADDRESS` contains the confirmed deployment,
-the hosted product remains a complete demo plus live wallet, database, storage,
-Circle route, and Arc RPC integration. No production funds are permitted.
+- Factory:
+  `0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
+- Deployment transaction:
+  `0x1759dd334012c32d69f852ef56c8424ed8cd16679c72c24db081ccd07e728215`
+- Block: `53644077`
+- Result: successful
+- Runtime bytecode: confirmed at the factory address
+- Factory USDC:
+  `0x3600000000000000000000000000000000000000`
+- Explorer:
+  `https://testnet.arcscan.app/address/0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
+
+The hosted application now uses this confirmed factory. Contracts remain
+unaudited and are permitted only for Arc Testnet use; no production funds are
+permitted.

@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: {
-      default: "Duevia - Work in stages. Settle globally.",
+      default: "Duevia — Work in stages. Settle globally.",
       template: "%s - Duevia",
     },
     description,
@@ -28,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
       shortcut: "/favicon.svg",
     },
     openGraph: {
-      title: "Duevia - Work in stages. Settle globally.",
+      title: "Duevia — Work in stages. Settle globally.",
       description,
       type: "website",
       images: [
@@ -42,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: "Duevia - Work in stages. Settle globally.",
+      title: "Duevia — Work in stages. Settle globally.",
       description,
       images: [socialImage],
     },

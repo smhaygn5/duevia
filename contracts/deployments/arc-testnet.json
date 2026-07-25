@@ -1,0 +1,11 @@
+{
+  "network": "Arc Testnet",
+  "chainId": 5042002,
+  "factoryAddress": "0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad",
+  "usdcAddress": "0x3600000000000000000000000000000000000000",
+  "deploymentTransaction": "0x1759dd334012c32d69f852ef56c8424ed8cd16679c72c24db081ccd07e728215",
+  "blockNumber": 53644077,
+  "blockTimestamp": "2026-07-25T20:33:10.000Z",
+  "factoryExplorerUrl": "https://testnet.arcscan.app/address/0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad",
+  "transactionExplorerUrl": "https://testnet.arcscan.app/tx/0x1759dd334012c32d69f852ef56c8424ed8cd16679c72c24db081ccd07e728215"
+}

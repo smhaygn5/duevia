@@ -11,6 +11,7 @@ export const ARC = {
 } as const;
 
 export const ARC_CONTRACTS = {
+  dueviaFactory: "0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad",
   usdc: "0x3600000000000000000000000000000000000000",
   cctpTokenMessengerV2: "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
   cctpMessageTransmitterV2: "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",

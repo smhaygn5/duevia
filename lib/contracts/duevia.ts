@@ -15,6 +15,7 @@ import { ARC, ARC_CONTRACTS, arcTestnet } from "@/lib/arc/config";
 
 export const dueviaFactoryAbi = parseAbi([
   "event EscrowCreated(bytes32 indexed agreementRef, address indexed escrow, address indexed client, address provider, uint256 totalAmount)",
+  "function usdc() view returns (address)",
   "function escrowByAgreement(bytes32 agreementRef) view returns (address escrow)",
   "function createEscrow((address client,address provider,bytes32 agreementRef,bytes32[] milestoneRefs,uint256[] amounts,uint64[] dueDates,uint32[] reviewWindows,uint8[] revisionLimits,uint64 nonDeliveryGracePeriod) config) returns (address escrowAddress)",
 ]);
@@ -62,7 +63,8 @@ export type EscrowDeploymentConfig = {
 
 export function getDueviaFactoryAddress(): Address | null {
   const value = process.env.NEXT_PUBLIC_DUEVIA_FACTORY_ADDRESS;
-  return value && isAddress(value) ? value : null;
+  if (value) return isAddress(value) ? value : null;
+  return ARC_CONTRACTS.dueviaFactory;
 }
 
 export function createDueviaPublicClient() {

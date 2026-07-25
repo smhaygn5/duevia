@@ -17,6 +17,7 @@
     "lint": "eslint app components db lib scripts tests worker vite.config.ts drizzle.config.ts next.config.ts eslint.config.mjs",
     "db:generate": "drizzle-kit generate",
     "arc:check": "tsx scripts/check-arc-rpc.ts",
+    "factory:check": "tsx scripts/check-deployed-factory.ts",
     "appkit:check": "tsx scripts/check-app-kit.ts",
     "flow:check": "tsx scripts/check-local-flow.ts"
   },

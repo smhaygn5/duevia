@@ -22,4 +22,11 @@ npm run build
 npm run typecheck
 ```
 
+Arc Testnet deployment:
+
+- Factory: `0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
+- USDC: `0x3600000000000000000000000000000000000000`
+- Chain ID: `5042002`
+- Deployment record: `deployments/arc-testnet.json`
+
 `DueviaEscrow.sol` is unaudited and is not approved for production funds.

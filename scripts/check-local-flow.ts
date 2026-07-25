@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { readdirSync } from "node:fs";
+import { resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { createServer } from "vite";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { ARC } from "../lib/arc/config";
@@ -12,6 +15,57 @@ type Session = {
   address: `0x${string}`;
   cookie: string;
 };
+
+function deliverableForm(agreementRef: string) {
+  const form = new FormData();
+  form.set(
+    "file",
+    new File(["Duevia protected delivery"], "handoff.txt", {
+      type: "text/plain",
+    }),
+  );
+  form.set("agreementRef", agreementRef);
+  form.set("milestonePosition", "1");
+  form.set("submissionId", randomUUID());
+  return form;
+}
+
+function activateLocalAgreementFixture(agreementRef: string) {
+  const d1Directory = resolve(
+    ".wrangler/state/v3/d1/miniflare-D1DatabaseObject",
+  );
+  const databaseFiles = readdirSync(d1Directory).filter((name) =>
+    /^[a-f0-9]+\.sqlite$/i.test(name),
+  );
+
+  for (const databaseFile of databaseFiles) {
+    const database = new DatabaseSync(resolve(d1Directory, databaseFile));
+    try {
+      const agreement = database
+        .prepare("SELECT id FROM agreements WHERE public_ref = ? LIMIT 1")
+        .get(agreementRef);
+      if (!agreement) continue;
+      database
+        .prepare(
+          `UPDATE agreements
+           SET contract_address = ?, state = 'active', updated_at = ?
+           WHERE public_ref = ?`,
+        )
+        .run(
+          "0x0000000000000000000000000000000000000001",
+          Date.now(),
+          agreementRef,
+        );
+      return;
+    } catch {
+      // Miniflare may retain unrelated local D1 databases in this directory.
+    } finally {
+      database.close();
+    }
+  }
+
+  throw new Error("The local agreement fixture database was not found.");
+}
 
 async function json<T>(
   path: string,
@@ -156,20 +210,21 @@ try {
   assert.ok(detail.data.agreement.provider_wallet_id);
   assert.equal(detail.data.milestones.length, 2);
 
-  const form = new FormData();
-  form.set(
-    "file",
-    new File(["Duevia protected delivery"], "handoff.txt", {
-      type: "text/plain",
-    }),
-  );
-  form.set("agreementRef", created.data.publicRef);
-  form.set("milestonePosition", "1");
-  form.set("submissionId", randomUUID());
+  const blockedUpload = await fetch(`${baseUrl}/api/deliverables`, {
+    method: "POST",
+    headers: { cookie: counterparty.cookie },
+    body: deliverableForm(created.data.publicRef),
+  });
+  assert.equal(blockedUpload.status, 403);
+
+  // This is fixture setup only: live application state reaches this point
+  // through a verified Arc deployment and funding transaction.
+  activateLocalAgreementFixture(created.data.publicRef);
+
   const uploadResponse = await fetch(`${baseUrl}/api/deliverables`, {
     method: "POST",
     headers: { cookie: counterparty.cookie },
-    body: form,
+    body: deliverableForm(created.data.publicRef),
   });
   const uploaded = (await uploadResponse.json()) as {
     id: string;

@@ -12,6 +12,8 @@ USDC stage by stage.
 - Arc Testnet wallet connection and signed, gasless application sessions
 - client- or provider-created agreements with private invitation links
 - one ownerless escrow factory and one isolated escrow per accepted agreement
+- a confirmed Arc Testnet factory at
+  `0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
 - exact client-only funding, provider-only delivery, and client-only approval
 - Circle App Kit Bridge execution from supported testnets to Arc
 - Circle Unified Balance discovery alongside direct Arc funding
@@ -48,6 +50,7 @@ npm run lint
 npm test
 npm run flow:check
 npm run arc:check
+npm run factory:check
 npm run appkit:check
 npm run test:contracts
 ```
@@ -64,8 +67,9 @@ npm run deploy:arc
 ```
 
 Set a testnet-only `ARC_TESTNET_PRIVATE_KEY` locally before deployment. Never
-commit or paste the key into application code. Publish the confirmed factory
-address as `NEXT_PUBLIC_DUEVIA_FACTORY_ADDRESS`, then rebuild the application.
+commit or paste the key into application code. The confirmed deployment is
+recorded in `contracts/deployments/arc-testnet.json` and can be inspected on
+[Arcscan](https://testnet.arcscan.app/address/0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad).
 
 ## Documentation
 
