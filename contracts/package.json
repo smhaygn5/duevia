@@ -1,0 +1,23 @@
+{
+  "name": "duevia-contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "hardhat build --build-profile production",
+    "test": "hardhat test solidity",
+    "typecheck": "tsc --noEmit",
+    "deploy:arc": "hardhat ignition deploy ignition/modules/DueviaFactory.ts --network arcTestnet --build-profile production --deployment-id duevia-arc-testnet"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.7",
+    "@types/node": "^22.20.1",
+    "forge-std": "github:foundry-rs/forge-std#v1.9.4",
+    "hardhat": "^3.11.1",
+    "typescript": "~6.0.3",
+    "viem": "^2.55.8"
+  }
+}
