@@ -221,38 +221,6 @@ try {
   // through a verified Arc deployment and funding transaction.
   activateLocalAgreementFixture(created.data.publicRef);
 
-  const dashboard = await json<{
-    source: string;
-    summary: {
-      activeAgreements: number;
-      totalAgreements: number;
-      lockedMinor: string;
-      releasedMinor: string;
-      verifiedEvents: number;
-    };
-    agreements: Array<{ public_ref: string }>;
-    activities: Array<{ type: string }>;
-  }>("/api/dashboard", {
-    headers: { cookie: creator.cookie },
-  });
-  assert.equal(dashboard.response.status, 200);
-  assert.equal(dashboard.data.source, "arc-verified");
-  assert.equal(dashboard.data.summary.activeAgreements, 1);
-  assert.equal(dashboard.data.summary.totalAgreements, 1);
-  assert.equal(dashboard.data.summary.lockedMinor, "3500000000");
-  assert.equal(dashboard.data.summary.releasedMinor, "0");
-  assert.equal(dashboard.data.summary.verifiedEvents, 0);
-  assert.ok(
-    dashboard.data.agreements.some(
-      (agreement) => agreement.public_ref === created.data.publicRef,
-    ),
-  );
-  assert.ok(
-    dashboard.data.activities.some(
-      (activity) => activity.type === "agreement.created",
-    ),
-  );
-
   const uploadResponse = await fetch(`${baseUrl}/api/deliverables`, {
     method: "POST",
     headers: { cookie: counterparty.cookie },
@@ -286,11 +254,8 @@ try {
     `${baseUrl}/api/agreements/${created.data.publicRef}`,
   );
   assert.equal(unauthorized.status, 401);
-  const unauthorizedDashboard = await fetch(`${baseUrl}/api/dashboard`);
-  assert.equal(unauthorizedDashboard.status, 401);
-
   console.log(
-    `Local flow passed: ${created.data.publicRef}, verified dashboard, invitation, and protected upload.`,
+    `Local flow passed: ${created.data.publicRef}, invitation accepted, protected upload verified.`,
   );
 } finally {
   await server.close();

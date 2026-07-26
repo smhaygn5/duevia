@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { formatUnits } from "viem";
+import {
+  loadVerifiedDashboard,
+  type DashboardActivity,
+} from "@/lib/dashboard-client";
 import { AppHeader } from "./app-header";
 import { useWallet } from "./wallet-provider";
 
@@ -29,16 +33,6 @@ type DisplayActivity = {
   date: string;
   agreement: string;
   proof: string | null;
-};
-
-type VerifiedActivity = {
-  id: string;
-  type: string;
-  detail: Record<string, unknown>;
-  tx_hash: string | null;
-  occurred_at: number;
-  agreement_ref: string;
-  agreement_title: string;
 };
 
 const demoActivities: DisplayActivity[] = [
@@ -97,7 +91,7 @@ function minorUsdc(value: unknown) {
   }
 }
 
-function describeActivity(activity: VerifiedActivity): DisplayActivity {
+function describeActivity(activity: DashboardActivity): DisplayActivity {
   const amount = minorUsdc(
     activity.detail.amountMinor ??
       activity.detail.releasedAmountMinor ??
@@ -201,19 +195,12 @@ export function ActivityView() {
 
     let active = true;
     const address = wallet.address;
-    void fetch("/api/dashboard", { cache: "no-store" })
-      .then(async (response) => {
-        const payload = (await response.json()) as {
-          activities?: VerifiedActivity[];
-          message?: string;
-        };
-        if (!response.ok) {
-          throw new Error(payload.message ?? "Unable to load activity.");
-        }
+    void loadVerifiedDashboard()
+      .then((payload) => {
         if (active) {
           setResult({
             address,
-            activities: (payload.activities ?? []).map(describeActivity),
+            activities: payload.activities.map(describeActivity),
             error: null,
           });
         }

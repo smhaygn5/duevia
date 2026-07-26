@@ -12,31 +12,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { formatUnits } from "viem";
 import { demoAgreement, demoAgreements } from "@/lib/demo-data";
+import {
+  loadVerifiedDashboard,
+  type DashboardPayload,
+} from "@/lib/dashboard-client";
 import { AppHeader } from "./app-header";
 import { StatusBadge } from "./status-badge";
 import { useWallet } from "./wallet-provider";
-
-type DashboardAgreement = {
-  public_ref: string;
-  title: string;
-  state: string;
-  total_amount_minor: string;
-  counterparty_name: string;
-  updated_at: number;
-};
-
-type DashboardPayload = {
-  source: "arc-verified";
-  summary: {
-    activeAgreements: number;
-    totalAgreements: number;
-    lockedMinor: string;
-    releasedMinor: string;
-    verifiedEvents: number;
-  };
-  agreements: DashboardAgreement[];
-  updatedAt: number;
-};
 
 function titleCase(value: string) {
   return value
@@ -65,14 +47,8 @@ export function DashboardOverview() {
 
     let active = true;
     const address = wallet.address;
-    void fetch("/api/dashboard", { cache: "no-store" })
-      .then(async (response) => {
-        const payload = (await response.json()) as DashboardPayload & {
-          message?: string;
-        };
-        if (!response.ok) {
-          throw new Error(payload.message ?? "Unable to load the workspace.");
-        }
+    void loadVerifiedDashboard()
+      .then((payload) => {
         if (active) {
           setResult({ address, dashboard: payload, error: null });
         }
