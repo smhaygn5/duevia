@@ -1042,6 +1042,55 @@ button:disabled,
   padding: 18px 20px;
 }
 
+.workspace-disclosure {
+  align-items: center;
+  background: rgba(124, 140, 255, 0.06);
+  border: 1px solid rgba(124, 140, 255, 0.18);
+  border-radius: 12px;
+  color: var(--muted);
+  display: flex;
+  font-size: 11px;
+  gap: 12px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+  padding: 11px 14px;
+}
+
+.workspace-disclosure strong {
+  color: var(--text);
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workspace-disclosure-demo {
+  background: rgba(255, 190, 92, 0.07);
+  border-color: rgba(255, 190, 92, 0.22);
+}
+
+.workspace-disclosure-demo strong {
+  color: #ffc86f;
+}
+
+.workspace-disclosure-verified {
+  background: rgba(98, 227, 173, 0.06);
+  border-color: rgba(98, 227, 173, 0.2);
+}
+
+.workspace-disclosure-verified strong {
+  color: var(--success);
+}
+
+.workspace-disclosure-error {
+  background: rgba(255, 107, 129, 0.07);
+  border-color: rgba(255, 107, 129, 0.2);
+}
+
+.workspace-disclosure-error strong {
+  color: #ff8ca0;
+}
+
 .attention-icon,
 .metric-icon,
 .action-icon,
@@ -3448,6 +3497,12 @@ button:disabled,
 
   .attention-card .button {
     grid-column: 1 / -1;
+  }
+
+  .workspace-disclosure {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .metric-grid {

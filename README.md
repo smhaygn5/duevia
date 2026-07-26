@@ -25,6 +25,20 @@ USDC stage by stage.
   receipts
 - a complete no-value demo at `DV-7K2P`
 
+## Demo and verified data
+
+Duevia deliberately separates presentation data from wallet-owned records:
+
+- signed-out visitors see a clearly labeled guided demo with fictional parties,
+  sample balances, and no broadcast transactions
+- signed-in users see only agreements linked to their Arc Testnet wallet
+- dashboard totals are calculated from persisted agreement and milestone states
+  synchronized from verified Arc transactions
+- explorer links appear only when a verified transaction hash exists
+
+No demo balance or activity is substituted when an authenticated workspace
+cannot load its real records.
+
 Duevia contracts are unaudited and intended only for Arc Testnet. Do not use
 this release with production funds.
 

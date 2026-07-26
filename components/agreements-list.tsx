@@ -22,10 +22,15 @@ export function AgreementsList() {
   const wallet = useWallet();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
-  const [saved, setSaved] = useState<ApiAgreement[]>([]);
+  const [result, setResult] = useState<{
+    address: string;
+    agreements: ApiAgreement[];
+  } | null>(null);
 
   useEffect(() => {
-    if (!wallet.authenticated) return;
+    if (!wallet.authenticated || !wallet.address) return;
+    let active = true;
+    const address = wallet.address;
     void fetch("/api/agreements", { cache: "no-store" })
       .then(async (response) =>
         response.ok
@@ -33,38 +38,46 @@ export function AgreementsList() {
           : null,
       )
       .then((data) => {
-        if (data?.agreements) setSaved(data.agreements);
+        if (active && data?.agreements) {
+          setResult({ address, agreements: data.agreements });
+        }
       });
-  }, [wallet.authenticated]);
+    return () => {
+      active = false;
+    };
+  }, [wallet.address, wallet.authenticated]);
 
+  const currentResult =
+    wallet.authenticated && wallet.address === result?.address ? result : null;
+  const loading = wallet.authenticated && !currentResult;
   const all = useMemo(
-    () => [
-      ...(wallet.authenticated ? saved : []).map((agreement) => ({
-        ref: agreement.public_ref,
-        title: agreement.title,
-        counterparty: agreement.counterparty_name,
-        total: formatUnits(BigInt(agreement.total_amount_minor), 6),
-        status: agreement.state
-          .split("_")
-          .map((word) => word[0]?.toUpperCase() + word.slice(1))
-          .join(" "),
-        milestones: agreement.milestone_count,
-        saved: true,
-      })),
-      ...demoAgreements.map((agreement) => ({
-        ref: agreement.publicRef,
-        title: agreement.title,
-        counterparty:
-          agreement.provider === "Orbit Studio"
-            ? agreement.client
-            : agreement.provider,
-        total: agreement.total,
-        status: agreement.status,
-        milestones: 3,
-        saved: false,
-      })),
-    ],
-    [saved, wallet.authenticated],
+    () =>
+      wallet.authenticated
+        ? (currentResult?.agreements ?? []).map((agreement) => ({
+            ref: agreement.public_ref,
+            title: agreement.title,
+            counterparty: agreement.counterparty_name,
+            total: formatUnits(BigInt(agreement.total_amount_minor), 6),
+            status: agreement.state
+              .split("_")
+              .map((word) => word[0]?.toUpperCase() + word.slice(1))
+              .join(" "),
+            milestones: agreement.milestone_count,
+            saved: true,
+          }))
+        : demoAgreements.map((agreement) => ({
+            ref: agreement.publicRef,
+            title: agreement.title,
+            counterparty:
+              agreement.provider === "Orbit Studio"
+                ? agreement.client
+                : agreement.provider,
+            total: agreement.total,
+            status: agreement.status,
+            milestones: 3,
+            saved: false,
+          })),
+    [currentResult, wallet.authenticated],
   );
 
   const visible = all.filter((agreement) => {
@@ -79,6 +92,22 @@ export function AgreementsList() {
 
   return (
     <>
+      <div
+        className={`workspace-disclosure ${
+          wallet.authenticated
+            ? "workspace-disclosure-verified"
+            : "workspace-disclosure-demo"
+        }`}
+      >
+        <strong>
+          {wallet.authenticated ? "Your persisted agreements" : "Guided demo"}
+        </strong>
+        <span>
+          {wallet.authenticated
+            ? "Only agreements linked to your signed-in Arc Testnet wallet are shown."
+            : "These sample agreements use fictional parties and no real funds."}
+        </span>
+      </div>
       <div className="list-toolbar">
         <label className="search-field">
           <Search size={16} />
@@ -129,6 +158,15 @@ export function AgreementsList() {
             <ArrowRight size={18} />
           </Link>
         ))}
+        {!visible.length && (
+          <div className="empty-state">
+            {loading
+              ? "Loading your agreements…"
+              : wallet.authenticated
+                ? "No real agreements yet. Create one to start."
+                : "No demo agreements match this search."}
+          </div>
+        )}
       </div>
     </>
   );

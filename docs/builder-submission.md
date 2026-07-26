@@ -37,7 +37,10 @@ activity trail.
 - provider submission proofs
 - client revisions and milestone releases
 - cancellation and deadline recovery paths
-- connected public demo with clear no-value disclosure
+- connected public demo with persistent no-value disclosure across dashboard,
+  agreements, activity, invitations, and receipts
+- wallet-owned dashboard totals calculated from stored agreement and milestone
+  states synchronized from verified Arc Testnet transactions
 
 ## Security posture
 

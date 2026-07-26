@@ -1,6 +1,6 @@
 # Duevia Phase 5 verification
 
-Verification date: 2026-07-25
+Verification date: 2026-07-27
 
 ## Automated results
 
@@ -8,7 +8,7 @@ Verification date: 2026-07-25
 | --- | --- |
 | TypeScript typecheck | Passed |
 | ESLint | Passed |
-| Unit tests | 12 / 12 passed |
+| Unit tests | 14 / 14 passed |
 | Production build | Passed |
 | Rendered page tests | 4 / 4 passed |
 | Solidity tests | 9 / 9 passed |
@@ -34,6 +34,19 @@ Verification date: 2026-07-25
 - Protected files use MIME signature validation, size limits, private R2
   access checks, `no-store`, and `nosniff`.
 - The client and provider cannot execute each other's contract actions.
+
+## Demo integrity
+
+- Signed-out demo balances and events are visibly labeled as fictional sample
+  data.
+- Signed-in dashboard, agreement list, and activity views do not mix in demo
+  records.
+- Dashboard totals are derived from wallet-owned D1 agreement and milestone
+  states synchronized from verified Arc Testnet transactions.
+- Demo receipts do not expose an explorer link or present a sample hash as a
+  real proof.
+- If verified workspace data cannot be loaded, the application reports the
+  error instead of substituting demo totals.
 
 ## Arc Testnet deployment
 

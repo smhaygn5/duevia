@@ -69,7 +69,9 @@ export function ReceiptCard({ receiptId }: { receiptId: string }) {
     );
   }
 
-  const explorerUrl = `${ARC.explorerUrl}/tx/${receipt.txHash}`;
+  const explorerUrl = isDemo
+    ? null
+    : `${ARC.explorerUrl}/tx/${receipt.txHash}`;
   const recipient = receipt.recipient
     ? `${receipt.recipient.slice(0, 8)}…${receipt.recipient.slice(-6)}`
     : "Recorded onchain";
@@ -128,12 +130,16 @@ export function ReceiptCard({ receiptId }: { receiptId: string }) {
         </dl>
 
         <div className="receipt-hash">
-          <span>Transaction proof</span>
-          <code>{receipt.txHash}</code>
-          <button type="button" onClick={() => void copyHash()}>
-            {copied ? <Check size={15} /> : <Copy size={15} />}
-            {copied ? "Copied" : "Copy hash"}
-          </button>
+          <span>{isDemo ? "Proof status" : "Transaction proof"}</span>
+          <code>
+            {isDemo ? "No transaction was broadcast · demo only" : receipt.txHash}
+          </code>
+          {!isDemo && (
+            <button type="button" onClick={() => void copyHash()}>
+              {copied ? <Check size={15} /> : <Copy size={15} />}
+              {copied ? "Copied" : "Copy hash"}
+            </button>
+          )}
         </div>
 
         {isDemo && (
@@ -152,15 +158,21 @@ export function ReceiptCard({ receiptId }: { receiptId: string }) {
             <FileDown size={16} />
             Print receipt
           </button>
-          <a
-            className="button button-primary"
-            href={explorerUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            View on ArcScan
-            <ExternalLink size={15} />
-          </a>
+          {explorerUrl ? (
+            <a
+              className="button button-primary"
+              href={explorerUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View on ArcScan
+              <ExternalLink size={15} />
+            </a>
+          ) : (
+            <button className="button button-primary" type="button" disabled>
+              Explorer unavailable in demo
+            </button>
+          )}
         </div>
       </section>
     </div>

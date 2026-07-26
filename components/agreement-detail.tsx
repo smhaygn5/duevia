@@ -223,11 +223,22 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
         Agreements
       </Link>
       <AppHeader
-        eyebrow={detail.publicRef}
+        eyebrow={isDemo ? `${detail.publicRef} · Demo agreement` : detail.publicRef}
         title={detail.title}
         description={`With ${detail.counterparty} · Arc Testnet`}
         action={<StatusBadge status={detail.status} />}
       />
+
+      {isDemo && (
+        <div className="workspace-disclosure workspace-disclosure-demo">
+          <strong>Guided demo · fictional agreement</strong>
+          <span>
+            The parties, balances, milestones, dates, and activity below are
+            illustrative. No escrow contract or USDC transfer exists for this
+            agreement.
+          </span>
+        </div>
+      )}
 
       <section className="agreement-detail-grid">
         <div className="agreement-detail-main">

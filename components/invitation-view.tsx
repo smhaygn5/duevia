@@ -141,11 +141,19 @@ export function InvitationView({ token }: { token: string }) {
         <div className={`decision-icon ${accepted ? "accepted" : "declined"}`}>
           {accepted ? <Check size={30} /> : <X size={30} />}
         </div>
-        <p>{accepted ? "Agreement accepted" : "Invitation declined"}</p>
+        <p>
+          {accepted
+            ? isDemo
+              ? "Demo invitation previewed"
+              : "Agreement accepted"
+            : "Invitation declined"}
+        </p>
         <h1>{data.agreement.title}</h1>
         <span>
           {accepted
-            ? "Your wallet is now linked to the agreement."
+            ? isDemo
+              ? "This demo choice was not saved and your wallet was not linked."
+              : "Your wallet is now linked to the agreement."
             : "No wallet action or transaction was created."}
         </span>
         <div className="decision-ticket">
@@ -172,7 +180,7 @@ export function InvitationView({ token }: { token: string }) {
               : "/"
           }
         >
-          {accepted ? "Open agreement" : "Return home"}
+          {accepted ? (isDemo ? "Continue demo" : "Open agreement") : "Return home"}
           <ArrowRight size={16} />
         </Link>
       </main>
@@ -204,6 +212,16 @@ export function InvitationView({ token }: { token: string }) {
           prepared clear milestone terms for you.
         </span>
       </header>
+
+      {isDemo && (
+        <div className="workspace-disclosure workspace-disclosure-demo">
+          <strong>Guided demo · fictional invitation</strong>
+          <span>
+            This invitation demonstrates the acceptance flow only. It does not
+            create an agreement, link a wallet, or move USDC.
+          </span>
+        </div>
+      )}
 
       <section className="invite-summary">
         <div>
