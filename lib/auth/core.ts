@@ -42,3 +42,36 @@ Nonce: ${params.nonce}
 Issued At: ${params.issuedAt}
 Expiration Time: ${params.expirationTime}`;
 }
+
+export function resolveAuthOrigin(params: {
+  requestUrl: string;
+  forwardedHost?: string | null;
+  forwardedProto?: string | null;
+}) {
+  const fallbackOrigin = new URL(params.requestUrl).origin;
+  const forwardedHost = params.forwardedHost?.split(",")[0]?.trim();
+  const forwardedProto = params.forwardedProto
+    ?.split(",")[0]
+    ?.trim()
+    .toLowerCase();
+
+  if (!forwardedHost || forwardedProto !== "https") {
+    return fallbackOrigin;
+  }
+
+  try {
+    const forwardedUrl = new URL(`https://${forwardedHost}`);
+    if (
+      forwardedUrl.username ||
+      forwardedUrl.password ||
+      forwardedUrl.pathname !== "/" ||
+      forwardedUrl.search ||
+      forwardedUrl.hash
+    ) {
+      return fallbackOrigin;
+    }
+    return forwardedUrl.origin;
+  } catch {
+    return fallbackOrigin;
+  }
+}

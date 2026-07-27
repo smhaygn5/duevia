@@ -5,6 +5,7 @@ import { ARC } from "@/lib/arc/config";
 import {
   createSignInMessage,
   randomToken,
+  resolveAuthOrigin,
 } from "@/lib/auth/server";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 
@@ -32,7 +33,11 @@ export async function POST(request: NextRequest) {
     const challengeId = crypto.randomUUID();
     const nonce = randomToken(18);
     const address = getAddress(input.address);
-    const origin = new URL(request.url).origin;
+    const origin = resolveAuthOrigin({
+      requestUrl: request.url,
+      forwardedHost: request.headers.get("x-forwarded-host"),
+      forwardedProto: request.headers.get("x-forwarded-proto"),
+    });
     const message = createSignInMessage({
       address,
       origin,

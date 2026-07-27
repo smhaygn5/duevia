@@ -5,6 +5,7 @@ import { sha256 } from "./core";
 export {
   createSignInMessage,
   randomToken,
+  resolveAuthOrigin,
   sha256,
   sha256Bytes,
 } from "./core";

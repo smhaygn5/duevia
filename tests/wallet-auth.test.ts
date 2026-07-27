@@ -5,6 +5,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { ARC } from "../lib/arc/config";
 import {
   createSignInMessage,
+  resolveAuthOrigin,
   sha256,
   sha256Bytes,
 } from "../lib/auth/core";
@@ -26,6 +27,38 @@ test("wallet sign-in challenge is origin-bound, expiring, and Arc-specific", () 
   assert.match(message, new RegExp(`Chain ID: ${ARC.chainId}`));
   assert.match(message, /Nonce: nonce-123/);
   assert.match(message, /Expiration Time: 2026-07-25T10:10:00\.000Z/);
+});
+
+test("wallet sign-in uses the public origin forwarded by the Vercel bridge", () => {
+  assert.equal(
+    resolveAuthOrigin({
+      requestUrl: "https://private-backend.example/api/auth/challenge",
+      forwardedHost: "duevia.vercel.app",
+      forwardedProto: "https",
+    }),
+    "https://duevia.vercel.app",
+  );
+});
+
+test("wallet sign-in ignores unsafe forwarded origins", () => {
+  const requestUrl = "https://private-backend.example/api/auth/challenge";
+
+  assert.equal(
+    resolveAuthOrigin({
+      requestUrl,
+      forwardedHost: "duevia.vercel.app/forged",
+      forwardedProto: "https",
+    }),
+    "https://private-backend.example",
+  );
+  assert.equal(
+    resolveAuthOrigin({
+      requestUrl,
+      forwardedHost: "duevia.vercel.app",
+      forwardedProto: "http",
+    }),
+    "https://private-backend.example",
+  );
 });
 
 test("raw deliverable hashing matches the standard SHA-256 vector", async () => {
