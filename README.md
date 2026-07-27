@@ -45,6 +45,9 @@ this release with production funds.
 Production deployment:
 `https://duevia.vercel.app`
 
+Public repository:
+`https://github.com/smhaygn5/duevia`
+
 The Vercel surface runs the public Next.js application and securely proxies
 authenticated API traffic to Duevia's private D1/R2 backend.
 

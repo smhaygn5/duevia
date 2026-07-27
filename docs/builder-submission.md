@@ -60,4 +60,4 @@ funds.
   `https://testnet.arcscan.app/address/0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
 - Deployment transaction:
   `https://testnet.arcscan.app/tx/0x1759dd334012c32d69f852ef56c8424ed8cd16679c72c24db081ccd07e728215`
-- Repository: add the public repository URL when published
+- Repository: `https://github.com/smhaygn5/duevia`
