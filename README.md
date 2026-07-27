@@ -10,6 +10,8 @@ USDC stage by stage.
 ## Phase 5 release
 
 - Arc Testnet wallet connection and signed, gasless application sessions
+- EIP-6963 installed-wallet discovery with explicit MetaMask, OKX, and other
+  EVM wallet selection
 - client- or provider-created agreements with private invitation links
 - one ownerless escrow factory and one isolated escrow per accepted agreement
 - a confirmed Arc Testnet factory at

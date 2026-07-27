@@ -2,6 +2,7 @@
 
 import type { ChainDefinition } from "@circle-fin/app-kit";
 import type { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
+import { getSelectedEthereumProvider } from "@/lib/wallet/selected-provider";
 
 export const fundingSources = [
   { value: "Arc_Testnet", label: "Arc Testnet", chainId: 5_042_002 },
@@ -38,7 +39,10 @@ type AdapterProvider = Parameters<
 >[0]["provider"];
 
 async function createBridgeContext(source: FundingSource) {
-  if (!window.ethereum) throw new Error("Connect an EVM wallet first.");
+  const selectedProvider = getSelectedEthereumProvider();
+  if (!selectedProvider) {
+    throw new Error("Choose and connect an EVM wallet first.");
+  }
 
   const [{ AppKit }, { createViemAdapterFromProvider }] =
     await Promise.all([
@@ -59,7 +63,7 @@ async function createBridgeContext(source: FundingSource) {
     throw new Error("Circle App Kit does not expose this Arc testnet route.");
   }
   const adapter = await createViemAdapterFromProvider({
-    provider: window.ethereum as AdapterProvider,
+    provider: selectedProvider as AdapterProvider,
     capabilities: {
       addressContext: "user-controlled",
       supportedChains,

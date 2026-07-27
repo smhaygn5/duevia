@@ -8,7 +8,7 @@ Verification date: 2026-07-27
 | --- | --- |
 | TypeScript typecheck | Passed |
 | ESLint | Passed |
-| Unit tests | 14 / 14 passed |
+| Unit tests | 16 / 16 passed |
 | Production build | Passed |
 | Rendered page tests | 4 / 4 passed |
 | Solidity tests | 9 / 9 passed |
@@ -34,6 +34,10 @@ Verification date: 2026-07-27
 - Protected files use MIME signature validation, size limits, private R2
   access checks, `no-store`, and `nosniff`.
 - The client and provider cannot execute each other's contract actions.
+- Installed EVM providers are discovered through EIP-6963 and sorted with
+  MetaMask and OKX first.
+- Contract and Circle actions use the provider explicitly selected by the user,
+  rather than whichever extension owns `window.ethereum`.
 
 ## Demo integrity
 

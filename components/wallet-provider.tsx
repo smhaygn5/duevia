@@ -11,6 +11,17 @@ import {
 } from "react";
 import { getAddress, stringToHex } from "viem";
 import { ARC } from "@/lib/arc/config";
+import {
+  legacyWalletName,
+  sortWalletProviders,
+} from "@/lib/wallet/provider-order";
+import { setSelectedEthereumProvider } from "@/lib/wallet/selected-provider";
+
+export type InstalledWallet = {
+  id: string;
+  name: string;
+  rdns: string;
+};
 
 type WalletContextValue = {
   address: `0x${string}` | null;
@@ -20,7 +31,10 @@ type WalletContextValue = {
   busy: boolean;
   error: string | null;
   hasProvider: boolean;
-  connect: () => Promise<void>;
+  installedWallets: InstalledWallet[];
+  activeWalletName: string | null;
+  clearError: () => void;
+  connect: (walletId: string) => Promise<boolean>;
   switchToArc: () => Promise<void>;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -40,6 +54,26 @@ function walletError(error: unknown) {
   return error instanceof Error ? error.message : "The wallet request failed.";
 }
 
+function legacyProviders() {
+  const injected = window.ethereum;
+  if (!injected) return [];
+  const providers = injected.providers?.length
+    ? injected.providers
+    : [injected];
+  return providers.map((provider, index): Eip6963ProviderDetail => {
+    const name = legacyWalletName(provider);
+    return {
+      info: {
+        uuid: `legacy-${name.toLowerCase().replaceAll(" ", "-")}-${index}`,
+        name,
+        icon: "",
+        rdns: `legacy.${name.toLowerCase().replaceAll(" ", "-")}`,
+      },
+      provider,
+    };
+  });
+}
+
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<`0x${string}` | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
@@ -47,8 +81,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const hasProvider =
-    typeof window !== "undefined" && Boolean(window.ethereum);
+  const [providers, setProviders] = useState<Eip6963ProviderDetail[]>([]);
+  const [activeProvider, setActiveProvider] =
+    useState<Eip6963ProviderDetail | null>(null);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -73,22 +108,51 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const provider = window.ethereum;
     const sessionTimer = window.setTimeout(() => {
       void refreshSession();
     }, 0);
-    if (!provider) {
-      return () => window.clearTimeout(sessionTimer);
-    }
+    return () => window.clearTimeout(sessionTimer);
+  }, [refreshSession]);
 
-    void provider
-      .request<string[]>({ method: "eth_accounts" })
-      .then((accounts) => {
-        if (accounts[0]) setAddress(getAddress(accounts[0]));
+  useEffect(() => {
+    const announceProvider = (event: Event) => {
+      const detail = (event as CustomEvent<Eip6963ProviderDetail>).detail;
+      if (
+        !detail?.info?.uuid ||
+        !detail.info.name ||
+        typeof detail.provider?.request !== "function"
+      ) {
+        return;
+      }
+      setProviders((current) => {
+        if (current.some((item) => item.info.uuid === detail.info.uuid)) {
+          return current;
+        }
+        const announced = current.filter(
+          (item) => !item.info.uuid.startsWith("legacy-"),
+        );
+        return sortWalletProviders([...announced, detail]);
       });
-    void provider.request<string>({ method: "eth_chainId" }).then((value) => {
-      setChainId(Number.parseInt(value, 16));
-    });
+    };
+
+    window.addEventListener("eip6963:announceProvider", announceProvider);
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+    const fallbackTimer = window.setTimeout(() => {
+      setProviders((current) =>
+        current.length ? current : sortWalletProviders(legacyProviders()),
+      );
+    }, 250);
+
+    return () => {
+      window.clearTimeout(fallbackTimer);
+      window.removeEventListener("eip6963:announceProvider", announceProvider);
+    };
+  }, []);
+
+  useEffect(() => {
+    const provider = activeProvider?.provider;
+    if (!provider) return;
 
     const onAccountsChanged = (...args: unknown[]) => {
       const accounts = args[0] as string[];
@@ -102,39 +166,65 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     provider.on?.("accountsChanged", onAccountsChanged);
     provider.on?.("chainChanged", onChainChanged);
     return () => {
-      window.clearTimeout(sessionTimer);
       provider.removeListener?.("accountsChanged", onAccountsChanged);
       provider.removeListener?.("chainChanged", onChainChanged);
     };
-  }, [refreshSession]);
+  }, [activeProvider]);
 
-  const connect = useCallback(async () => {
-    const provider = window.ethereum;
-    if (!provider) {
-      setError("Install an EVM wallet to connect. You can still explore the demo.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const accounts = await provider.request<string[]>({
-        method: "eth_requestAccounts",
-      });
-      if (!accounts[0]) throw new Error("No wallet account was returned.");
-      const network = await provider.request<string>({ method: "eth_chainId" });
-      setAddress(getAddress(accounts[0]));
-      setChainId(Number.parseInt(network, 16));
-    } catch (requestError) {
-      setError(walletError(requestError));
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+  const installedWallets = useMemo(
+    () =>
+      providers.map((detail) => ({
+        id: detail.info.uuid,
+        name: detail.info.name,
+        rdns: detail.info.rdns,
+      })),
+    [providers],
+  );
+
+  const connect = useCallback(
+    async (walletId: string) => {
+      const detail = providers.find((item) => item.info.uuid === walletId);
+      if (!detail) {
+        setError("The selected wallet is no longer available.");
+        return false;
+      }
+
+      setBusy(true);
+      setError(null);
+      try {
+        const accounts = await detail.provider.request<string[]>({
+          method: "eth_requestAccounts",
+        });
+        if (!accounts[0]) throw new Error("No wallet account was returned.");
+        const network = await detail.provider.request<string>({
+          method: "eth_chainId",
+        });
+        const connectedAddress = getAddress(accounts[0]);
+        const connectedChainId = Number.parseInt(network, 16);
+        const keepsSession =
+          authenticated &&
+          address?.toLowerCase() === connectedAddress.toLowerCase() &&
+          chainId === connectedChainId;
+        setSelectedEthereumProvider(detail.provider);
+        setActiveProvider(detail);
+        setAddress(connectedAddress);
+        setChainId(connectedChainId);
+        setAuthenticated(keepsSession);
+        return true;
+      } catch (requestError) {
+        setError(walletError(requestError));
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [address, authenticated, chainId, providers],
+  );
 
   const switchToArc = useCallback(async () => {
-    const provider = window.ethereum;
+    const provider = activeProvider?.provider;
     if (!provider) {
-      setError("An EVM wallet is required to switch networks.");
+      setError("Choose an installed EVM wallet before switching networks.");
       return;
     }
     setBusy(true);
@@ -182,12 +272,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [activeProvider]);
 
   const signIn = useCallback(async () => {
-    const provider = window.ethereum;
+    const provider = activeProvider?.provider;
     if (!provider || !address) {
-      setError("Connect a wallet before signing in.");
+      setError("Choose and connect a wallet before signing in.");
       return;
     }
     if (chainId !== ARC.chainId) {
@@ -236,7 +326,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setBusy(false);
     }
-  }, [address, chainId]);
+  }, [activeProvider, address, chainId]);
 
   const signOut = useCallback(async () => {
     setBusy(true);
@@ -244,6 +334,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       await fetch("/api/auth/signout", { method: "POST" });
       setAuthenticated(false);
+      setAddress(null);
+      setChainId(null);
+      setActiveProvider(null);
+      setSelectedEthereumProvider(null);
     } finally {
       setBusy(false);
     }
@@ -257,20 +351,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       ready,
       busy,
       error,
-      hasProvider,
+      hasProvider: installedWallets.length > 0,
+      installedWallets,
+      activeWalletName: activeProvider?.info.name ?? null,
+      clearError: () => setError(null),
       connect,
       switchToArc,
       signIn,
       signOut,
     }),
     [
+      activeProvider,
       address,
       authenticated,
       busy,
       chainId,
       connect,
       error,
-      hasProvider,
+      installedWallets,
       ready,
       signIn,
       signOut,

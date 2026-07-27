@@ -12,6 +12,7 @@ import {
   type TransactionReceipt,
 } from "viem";
 import { ARC, ARC_CONTRACTS, arcTestnet } from "@/lib/arc/config";
+import { getSelectedEthereumProvider } from "@/lib/wallet/selected-provider";
 
 export const dueviaFactoryAbi = parseAbi([
   "event EscrowCreated(bytes32 indexed agreementRef, address indexed escrow, address indexed client, address provider, uint256 totalAmount)",
@@ -77,11 +78,12 @@ export function createDueviaPublicClient() {
 }
 
 function createDueviaWalletClient(account: Address) {
-  if (!window.ethereum) throw new Error("Connect an EVM wallet first.");
+  const provider = getSelectedEthereumProvider();
+  if (!provider) throw new Error("Choose and connect an EVM wallet first.");
   return createWalletClient({
     account,
     chain: arcTestnet,
-    transport: custom(window.ethereum),
+    transport: custom(provider),
   });
 }
 

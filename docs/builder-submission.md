@@ -30,6 +30,8 @@ activity trail.
 ## What works
 
 - signed wallet sessions and private invitations
+- explicit installed-wallet selection through EIP-6963; no injected wallet is
+  opened automatically
 - D1 agreements, milestones, activities, and receipts
 - protected R2 deliverable uploads and downloads
 - ownerless escrow factory and isolated agreement escrows
