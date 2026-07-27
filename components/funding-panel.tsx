@@ -29,6 +29,7 @@ import {
 import {
   approveAgreementUsdc,
   deployAgreementEscrow,
+  formatContractError,
   getDueviaFactoryAddress,
   readFundingState,
   syncAgreementTransaction,
@@ -40,9 +41,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
   const wallet = useWallet();
   const isDemo = agreementRef.toUpperCase() === demoAgreement.publicRef;
   const [agreementData, setAgreementData] = useState<AgreementPayload | null>(null);
-  const [source, setSource] = useState<FundingSource>(
-    "Ethereum_Sepolia",
-  );
+  const [source, setSource] = useState<FundingSource>("Arc_Testnet");
   const [method, setMethod] = useState<"bridge" | "unified">("bridge");
   const [quote, setQuote] = useState<BridgeQuote | null>(null);
   const [unifiedBalance, setUnifiedBalance] = useState<UnifiedBalance | null>(
@@ -232,11 +231,10 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       setConfirmed(true);
       setProgress("Funding confirmed on Arc. The provider can now begin.");
     } catch (fundingError) {
-      setError(
-        fundingError instanceof Error
-          ? fundingError.message
-          : "The funding step could not be completed.",
-      );
+      setError(formatContractError(
+        fundingError,
+        "The funding step could not be completed. Reload the agreement and check the connected Arc wallet.",
+      ));
     } finally {
       setBusy(false);
     }
@@ -341,7 +339,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                 setUnifiedBalance(null);
               }}
             >
-              Bridge
+              Arc / Bridge
             </button>
             <button
               type="button"

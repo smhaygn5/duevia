@@ -937,6 +937,11 @@ button:disabled,
   border-color: rgba(98, 227, 173, 0.3);
 }
 
+.wallet-status {
+  cursor: default;
+  user-select: none;
+}
+
 .wallet-error {
   background: #26101c;
   border: 1px solid rgba(255, 142, 155, 0.28);
@@ -1727,9 +1732,14 @@ button:disabled,
   border-color: rgba(168, 178, 255, 0.62);
 }
 
-.field select option,
-.funding-amount-box select option {
+.field select option {
   background: var(--surface-raised);
+  color: var(--foreground);
+}
+
+.funding-amount-box select option {
+  background: #fff;
+  color: #111528;
 }
 
 .milestone-editor-list {
@@ -2371,7 +2381,7 @@ button:disabled,
   background: #f6f7fb;
   border-radius: 22px;
   color: #111528;
-  padding: 17px;
+  padding: 21px;
 }
 
 .funding-widget > header,
@@ -2388,12 +2398,13 @@ button:disabled,
 }
 
 .funding-widget > header strong {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .funding-widget > header small {
   color: #737991;
-  font-size: 9px;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .network-chip,
@@ -2417,12 +2428,14 @@ button:disabled,
 
 .funding-method-tabs {
   border-color: rgba(17, 21, 40, 0.1);
-  margin: 17px 0 10px;
+  margin: 19px 0 12px;
 }
 
 .funding-method-tabs button {
   color: #737991;
   flex: 1;
+  font-size: 11px;
+  min-height: 38px;
 }
 
 .funding-method-tabs button.active {
@@ -2437,20 +2450,23 @@ button:disabled,
   border: 1px solid rgba(17, 21, 40, 0.09);
   border-radius: 15px;
   display: flex;
+  gap: 20px;
   justify-content: space-between;
-  min-height: 132px;
-  padding: 16px;
+  min-height: 142px;
+  padding: 18px;
 }
 
 .funding-amount-box > div:first-child {
   display: grid;
-  gap: 7px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .funding-amount-box span,
 .route-details span {
   color: #737991;
-  font-size: 9px;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .funding-amount-box strong {
@@ -2460,7 +2476,8 @@ button:disabled,
 
 .funding-amount-box small {
   color: #737991;
-  font-size: 9px;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .funding-amount-box select {
@@ -2468,10 +2485,10 @@ button:disabled,
   border: 0;
   border-radius: 999px;
   color: #111528;
-  font-size: 10px;
-  max-width: 150px;
-  min-height: 38px;
-  padding: 0 10px;
+  font-size: 11px;
+  max-width: 178px;
+  min-height: 42px;
+  padding: 0 14px;
 }
 
 .funding-swap-divider {
@@ -2515,22 +2532,26 @@ button:disabled,
   border: 1px solid rgba(17, 21, 40, 0.09);
   border-radius: 13px;
   display: grid;
-  gap: 10px;
-  margin-top: 12px;
-  padding: 13px;
+  gap: 13px;
+  margin-top: 14px;
+  padding: 16px;
 }
 
 .route-details div {
   align-items: center;
   display: flex;
+  gap: 16px;
   justify-content: space-between;
 }
 
 .route-details strong {
   align-items: center;
   display: flex;
-  font-size: 9px;
+  font-size: 10px;
   gap: 5px;
+  line-height: 1.4;
+  max-width: 66%;
+  text-align: right;
 }
 
 .funding-widget .button-primary {
@@ -2541,6 +2562,7 @@ button:disabled,
 
 .funding-widget .form-error {
   color: #a52b43;
+  overflow-wrap: anywhere;
 }
 
 .widget-note {
@@ -3158,6 +3180,11 @@ button:disabled,
 
 .settings-readonly span {
   color: var(--muted);
+}
+
+.settings-signout {
+  justify-self: start;
+  margin-top: 2px;
 }
 
 .security-note {

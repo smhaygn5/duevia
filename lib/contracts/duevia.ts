@@ -15,6 +15,9 @@ import { ARC, ARC_CONTRACTS, arcTestnet } from "@/lib/arc/config";
 import { getSelectedEthereumProvider } from "@/lib/wallet/selected-provider";
 
 export const dueviaFactoryAbi = parseAbi([
+  "error Unauthorized()",
+  "error AgreementAlreadyDeployed()",
+  "error InvalidConfiguration()",
   "event EscrowCreated(bytes32 indexed agreementRef, address indexed escrow, address indexed client, address provider, uint256 totalAmount)",
   "function usdc() view returns (address)",
   "function escrowByAgreement(bytes32 agreementRef) view returns (address escrow)",
@@ -22,6 +25,15 @@ export const dueviaFactoryAbi = parseAbi([
 ]);
 
 export const dueviaEscrowAbi = parseAbi([
+  "error Unauthorized()",
+  "error InvalidState()",
+  "error InvalidConfiguration()",
+  "error NotCurrentMilestone()",
+  "error ReviewWindowClosed()",
+  "error DeadlineNotReached()",
+  "error RevisionLimitReached()",
+  "error WorkAlreadyStarted()",
+  "error TokenTransferMismatch()",
   "event AgreementFunded(bytes32 indexed agreementRef, uint256 amount)",
   "event MilestoneStarted(bytes32 indexed agreementRef, uint256 indexed milestoneIndex)",
   "event MilestoneSubmitted(bytes32 indexed agreementRef, uint256 indexed milestoneIndex, bytes32 indexed submissionRef, uint64 reviewDeadline)",
@@ -37,7 +49,7 @@ export const dueviaEscrowAbi = parseAbi([
   "function totalAmount() view returns (uint256)",
   "function nonDeliveryGracePeriod() view returns (uint64)",
   "function milestoneCount() view returns (uint256)",
-  "function milestones(uint256) view returns (bytes32 ref, uint256 amount, uint64 dueDate, uint32 reviewWindow, uint8 revisionLimit, uint8 revisionsUsed, bytes32 submissionRef, uint64 submittedAt, uint8 state)",
+  "function getMilestone(uint256 index) view returns (bytes32 milestoneRef, uint256 amount, uint64 dueDate, uint32 reviewWindow, uint8 revisionLimit, uint8 revisionsUsed, uint64 submittedAt, uint8 state)",
   "function fund()",
   "function startCurrentMilestone()",
   "function submit(uint256 milestoneIndex, bytes32 submissionRef)",
@@ -91,9 +103,16 @@ async function sendAndWait(
   account: Address,
   request: Parameters<ReturnType<typeof createDueviaWalletClient>["writeContract"]>[0],
 ) {
+  const publicClient = createDueviaPublicClient();
+  const simulation = await publicClient.simulateContract({
+    ...request,
+    account,
+  } as Parameters<typeof publicClient.simulateContract>[0]);
   const wallet = createDueviaWalletClient(account);
-  const hash = await wallet.writeContract(request);
-  const receipt = await createDueviaPublicClient().waitForTransactionReceipt({
+  const hash = await wallet.writeContract(
+    simulation.request as Parameters<typeof wallet.writeContract>[0],
+  );
+  const receipt = await publicClient.waitForTransactionReceipt({
     hash,
     confirmations: 1,
     timeout: 90_000,
@@ -102,6 +121,59 @@ async function sendAndWait(
     throw new Error("The Arc transaction reverted.");
   }
   return receipt;
+}
+
+function contractErrorText(error: unknown, depth = 0): string {
+  if (depth > 5 || typeof error !== "object" || error === null) return "";
+  const candidate = error as {
+    name?: unknown;
+    message?: unknown;
+    shortMessage?: unknown;
+    details?: unknown;
+    cause?: unknown;
+    code?: unknown;
+  };
+  return [
+    typeof candidate.name === "string" ? candidate.name : "",
+    typeof candidate.shortMessage === "string" ? candidate.shortMessage : "",
+    typeof candidate.details === "string" ? candidate.details : "",
+    typeof candidate.message === "string" ? candidate.message : "",
+    String(candidate.code ?? ""),
+    contractErrorText(candidate.cause, depth + 1),
+  ].join(" ");
+}
+
+export function formatContractError(
+  error: unknown,
+  fallback = "Arc could not prepare this transaction. Check the connected wallet, network, and testnet balance.",
+) {
+  const detail = contractErrorText(error).toLowerCase();
+  if (detail.includes("agreementalreadydeployed")) {
+    return "This agreement already has an Arc escrow. Reload the agreement before continuing.";
+  }
+  if (detail.includes("invalidconfiguration")) {
+    return "The escrow terms are no longer valid. Check milestone dates, amounts, and both wallet addresses.";
+  }
+  if (detail.includes("unauthorized")) {
+    return "Only the wallet assigned to this action can complete the transaction.";
+  }
+  if (detail.includes("insufficient funds")) {
+    return "This wallet does not have enough Arc Testnet USDC for the amount and network fee.";
+  }
+  if (
+    detail.includes("user rejected") ||
+    detail.includes("user denied") ||
+    detail.includes("4001")
+  ) {
+    return "The wallet request was cancelled.";
+  }
+  if (detail.includes("invalidstate")) {
+    return "This escrow action is not available in its current state. Reload the agreement.";
+  }
+  if (detail.includes("tokentransfermismatch")) {
+    return "The USDC transfer did not match the agreement amount. Check the wallet balance and allowance.";
+  }
+  return fallback;
 }
 
 export async function deployAgreementEscrow(

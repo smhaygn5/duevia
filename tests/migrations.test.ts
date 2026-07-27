@@ -83,3 +83,61 @@ test("phase four migration preserves legacy agreements and accepts provider-crea
   assert.deepEqual(tables, ["auth_challenges", "wallet_sessions"]);
   db.close();
 });
+
+test("unique escrow reference migration upgrades only agreements without deployments", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec(migration("0000_mighty_marvel_apes.sql"));
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO wallets (
+      id, address, chain_id, display_name, last_signed_in_at, created_at, updated_at
+    ) VALUES (?, ?, ?, NULL, NULL, ?, ?)`,
+  ).run("wallet-migration", `0x${"22".repeat(20)}`, 5_042_002, now, now);
+  const insert = db.prepare(
+    `INSERT INTO agreements (
+      id, public_ref, contract_address, agreement_hash, title,
+      client_wallet_id, provider_wallet_id, provider_invite_hash, currency,
+      total_amount_minor, state, chain_id, funded_tx_hash, version,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, 'USDC', ?, 'awaiting_funding',
+      ?, NULL, 1, ?, ?)`,
+  );
+  insert.run(
+    "agreement-pending",
+    "DV-PENDING",
+    null,
+    "pending-hash",
+    "Pending deployment",
+    "wallet-migration",
+    "pending-invite",
+    "1000000",
+    5_042_002,
+    now,
+    now,
+  );
+  insert.run(
+    "agreement-deployed",
+    "DV-DEPLOYED",
+    `0x${"33".repeat(20)}`,
+    "deployed-hash",
+    "Existing deployment",
+    "wallet-migration",
+    "deployed-invite",
+    "1000000",
+    5_042_002,
+    now,
+    now,
+  );
+
+  db.exec(migration("0003_unique_escrow_refs.sql"));
+
+  const rows = db
+    .prepare("SELECT id, version FROM agreements ORDER BY id")
+    .all()
+    .map((row) => ({ id: String(row.id), version: Number(row.version) }));
+  assert.deepEqual(rows, [
+    { id: "agreement-deployed", version: 1 },
+    { id: "agreement-pending", version: 2 },
+  ]);
+  db.close();
+});

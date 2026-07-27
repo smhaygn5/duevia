@@ -169,6 +169,10 @@ export function ensureRuntimeSchema() {
         ON activities (agreement_id, occurred_at)`,
       `CREATE UNIQUE INDEX IF NOT EXISTS activity_tx_hash_unique
         ON activities (tx_hash)`,
+      `UPDATE agreements
+        SET version = 2
+        WHERE version = 1
+          AND contract_address IS NULL`,
     ];
 
     await db.batch(statements.map((statement) => db.prepare(statement)));

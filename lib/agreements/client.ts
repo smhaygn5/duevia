@@ -1,5 +1,9 @@
 import { getAddress, type Address, type Hex } from "viem";
 import type { EscrowDeploymentConfig } from "@/lib/contracts/duevia";
+import {
+  agreementOnchainRef,
+  milestoneOnchainRef,
+} from "@/lib/agreements/onchain-proof";
 
 export type AgreementRecord = {
   public_ref: string;
@@ -17,6 +21,7 @@ export type AgreementRecord = {
   state: string;
   chain_id: number;
   funded_tx_hash: Hex | null;
+  version: number;
   created_at: number;
   updated_at: number;
 };
@@ -91,14 +96,6 @@ export function getCurrentMilestone(milestones: MilestoneRecord[]) {
   );
 }
 
-function proof(value: string): Hex {
-  const normalized = value.startsWith("0x") ? value : `0x${value}`;
-  if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
-    throw new Error("A stored agreement proof is invalid.");
-  }
-  return normalized as Hex;
-}
-
 export function escrowConfigFromAgreement(
   payload: AgreementPayload,
 ): EscrowDeploymentConfig {
@@ -109,8 +106,18 @@ export function escrowConfigFromAgreement(
   return {
     client: getAddress(agreement.client_address),
     provider: getAddress(agreement.provider_address),
-    agreementRef: proof(agreement.agreement_hash),
-    milestoneRefs: milestones.map((milestone) => proof(milestone.milestone_hash)),
+    agreementRef: agreementOnchainRef({
+      version: agreement.version,
+      publicRef: agreement.public_ref,
+      agreementHash: agreement.agreement_hash,
+    }),
+    milestoneRefs: milestones.map((milestone) =>
+      milestoneOnchainRef({
+        version: agreement.version,
+        publicRef: agreement.public_ref,
+        milestoneHash: milestone.milestone_hash,
+      }),
+    ),
     amounts: milestones.map((milestone) => BigInt(milestone.amount_minor)),
     dueDates: milestones.map((milestone) =>
       BigInt(Math.floor(milestone.due_at / 1_000)),

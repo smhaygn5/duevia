@@ -11,6 +11,10 @@ import { z } from "zod";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import { getWalletSession } from "@/lib/auth/server";
 import {
+  agreementOnchainRef,
+  milestoneOnchainRef,
+} from "@/lib/agreements/onchain-proof";
+import {
   createDueviaPublicClient,
   dueviaEscrowAbi,
   dueviaFactoryAbi,
@@ -35,6 +39,7 @@ type AgreementRow = {
   id: string;
   public_ref: string;
   agreement_hash: string;
+  version: number;
   contract_address: string | null;
   client_address: string;
   provider_address: string;
@@ -93,6 +98,7 @@ export async function POST(
           agreements.id,
           agreements.public_ref,
           agreements.agreement_hash,
+          agreements.version,
           agreements.contract_address,
           agreements.total_amount_minor,
           client_wallet.address AS client_address,
@@ -158,7 +164,11 @@ export async function POST(
       );
     }
     const now = Date.now();
-    const expectedAgreementRef = `0x${agreement.agreement_hash}` as Hex;
+    const expectedAgreementRef = agreementOnchainRef({
+      version: agreement.version,
+      publicRef: agreement.public_ref,
+      agreementHash: agreement.agreement_hash,
+    });
 
     if (!agreement.contract_address) {
       const factoryAddress = getDueviaFactoryAddress();
@@ -224,7 +234,7 @@ export async function POST(
           publicClient.readContract({
             address: args.escrow,
             abi: dueviaEscrowAbi,
-            functionName: "milestones",
+            functionName: "getMilestone",
             args: [BigInt(index)],
           }),
         ),
@@ -238,7 +248,11 @@ export async function POST(
           const [ref, amount, dueDate, reviewWindow, revisionLimit] = onchain;
           return (
             ref.toLowerCase() ===
-              `0x${milestone.milestone_hash}`.toLowerCase() &&
+              milestoneOnchainRef({
+                version: agreement.version,
+                publicRef: agreement.public_ref,
+                milestoneHash: milestone.milestone_hash,
+              }).toLowerCase() &&
             amount === BigInt(milestone.amount_minor) &&
             dueDate === BigInt(Math.floor(milestone.due_at / 1_000)) &&
             reviewWindow === milestone.review_window_seconds &&

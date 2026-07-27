@@ -40,7 +40,7 @@ export function WalletButton() {
   let label = "Connect wallet";
   let action: (() => Promise<void>) | null = null;
   if (wallet.authenticated && !wallet.activeWalletName) {
-    label = "Choose wallet";
+    label = "Reconnect wallet";
   } else if (wallet.address && wrongNetwork) {
     label = "Switch to Arc";
     action = wallet.switchToArc;
@@ -49,8 +49,9 @@ export function WalletButton() {
     action = wallet.signIn;
   } else if (wallet.address && wallet.authenticated) {
     label = shortAddress(wallet.address);
-    action = wallet.signOut;
   }
+  const showIdentity =
+    wallet.authenticated && Boolean(wallet.activeWalletName) && !wrongNetwork;
 
   function openChooser() {
     wallet.clearError();
@@ -64,20 +65,29 @@ export function WalletButton() {
 
   return (
     <div className="wallet-control">
-      <button
-        className={`wallet-button${wallet.authenticated ? " is-authenticated" : ""}`}
-        type="button"
-        onClick={() => {
-          if (action) void action();
-          else openChooser();
-        }}
-        disabled={wallet.busy}
-        aria-label={wallet.authenticated ? `${label}, sign out` : label}
-      >
-        {wallet.authenticated ? <Check size={15} /> : <Wallet size={15} />}
-        <span>{wallet.busy ? "Waiting for wallet…" : label}</span>
-        {wallet.authenticated && <ChevronDown size={14} />}
-      </button>
+      {showIdentity ? (
+        <div
+          className="wallet-button wallet-status is-authenticated"
+          aria-label={`${wallet.activeWalletName}, ${label}, connected`}
+        >
+          <Check size={15} />
+          <span>{label}</span>
+        </div>
+      ) : (
+        <button
+          className={`wallet-button${wallet.authenticated ? " is-authenticated" : ""}`}
+          type="button"
+          onClick={() => {
+            if (action) void action();
+            else openChooser();
+          }}
+          disabled={wallet.busy}
+          aria-label={label}
+        >
+          {wallet.authenticated ? <Check size={15} /> : <Wallet size={15} />}
+          <span>{wallet.busy ? "Waiting for wallet…" : label}</span>
+        </button>
+      )}
 
       {wallet.error && (
         <div className="wallet-error" role="status">

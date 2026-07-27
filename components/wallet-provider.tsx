@@ -158,12 +158,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const onAccountsChanged = (...args: unknown[]) => {
       const accounts = args[0] as string[];
-      setAddress(accounts[0] ? getAddress(accounts[0]) : null);
-      setAuthenticated(false);
+      const nextAddress = accounts[0] ? getAddress(accounts[0]) : null;
+      const changed =
+        !nextAddress || nextAddress.toLowerCase() !== address?.toLowerCase();
+      setAddress(nextAddress);
+      if (changed) {
+        setAuthenticated(false);
+        void fetch("/api/auth/signout", { method: "POST" });
+      }
     };
     const onChainChanged = (...args: unknown[]) => {
       setChainId(Number.parseInt(args[0] as string, 16));
-      setAuthenticated(false);
     };
     provider.on?.("accountsChanged", onAccountsChanged);
     provider.on?.("chainChanged", onChainChanged);
@@ -171,7 +176,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       provider.removeListener?.("accountsChanged", onAccountsChanged);
       provider.removeListener?.("chainChanged", onChainChanged);
     };
-  }, [activeProvider]);
+  }, [activeProvider, address]);
 
   const installedWallets = useMemo(
     () =>
@@ -183,6 +188,42 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       })),
     [providers],
   );
+
+  useEffect(() => {
+    if (!authenticated || !address || activeProvider || providers.length === 0) {
+      return;
+    }
+    let cancelled = false;
+
+    async function restoreConnectedProvider() {
+      for (const detail of providers) {
+        try {
+          const accounts = await detail.provider.request<string[]>({
+            method: "eth_accounts",
+          });
+          const hasSessionAccount = accounts.some(
+            (account) => account.toLowerCase() === address?.toLowerCase(),
+          );
+          if (!hasSessionAccount || cancelled) continue;
+          const network = await detail.provider.request<string>({
+            method: "eth_chainId",
+          });
+          if (cancelled) return;
+          setSelectedEthereumProvider(detail.provider);
+          setActiveProvider(detail);
+          setChainId(Number.parseInt(network, 16));
+          return;
+        } catch {
+          // A provider may be locked or unavailable; continue without prompting.
+        }
+      }
+    }
+
+    void restoreConnectedProvider();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProvider, address, authenticated, providers]);
 
   const connect = useCallback(
     async (walletId: string) => {
@@ -206,8 +247,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const connectedChainId = Number.parseInt(network, 16);
         const keepsSession =
           authenticated &&
-          address?.toLowerCase() === connectedAddress.toLowerCase() &&
-          chainId === connectedChainId;
+          address?.toLowerCase() === connectedAddress.toLowerCase();
         setSelectedEthereumProvider(detail.provider);
         setActiveProvider(detail);
         setAddress(connectedAddress);
@@ -221,7 +261,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setBusy(false);
       }
     },
-    [address, authenticated, chainId, providers],
+    [address, authenticated, providers],
   );
 
   const switchToArc = useCallback(async () => {
