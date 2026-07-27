@@ -13,6 +13,7 @@ import { getAddress, stringToHex } from "viem";
 import { ARC } from "@/lib/arc/config";
 import {
   legacyWalletName,
+  safeWalletIcon,
   sortWalletProviders,
 } from "@/lib/wallet/provider-order";
 import { setSelectedEthereumProvider } from "@/lib/wallet/selected-provider";
@@ -21,6 +22,7 @@ export type InstalledWallet = {
   id: string;
   name: string;
   rdns: string;
+  icon: string | null;
 };
 
 type WalletContextValue = {
@@ -177,6 +179,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         id: detail.info.uuid,
         name: detail.info.name,
         rdns: detail.info.rdns,
+        icon: safeWalletIcon(detail.info.icon),
       })),
     [providers],
   );

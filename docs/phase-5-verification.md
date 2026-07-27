@@ -8,7 +8,7 @@ Verification date: 2026-07-27
 | --- | --- |
 | TypeScript typecheck | Passed |
 | ESLint | Passed |
-| Unit tests | 16 / 16 passed |
+| Unit tests | 17 / 17 passed |
 | Production build | Passed |
 | Rendered page tests | 4 / 4 passed |
 | Solidity tests | 9 / 9 passed |

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   legacyWalletName,
+  safeWalletIcon,
   sortWalletProviders,
   walletPriority,
 } from "../lib/wallet/provider-order";
@@ -37,4 +38,13 @@ test("recognizes preferred and legacy provider identities", () => {
     }),
     "OKX Wallet",
   );
+});
+
+test("accepts embedded wallet icons without allowing remote image URLs", () => {
+  assert.equal(
+    safeWalletIcon("data:image/png;base64,aWNvbg=="),
+    "data:image/png;base64,aWNvbg==",
+  );
+  assert.equal(safeWalletIcon("https://example.com/wallet.png"), null);
+  assert.equal(safeWalletIcon("javascript:alert(1)"), null);
 });

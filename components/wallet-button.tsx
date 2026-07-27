@@ -7,6 +7,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { ARC } from "@/lib/arc/config";
 import { useWallet } from "./wallet-provider";
@@ -124,8 +125,22 @@ export function WalletButton() {
                   disabled={wallet.busy}
                   autoFocus={index === 0}
                 >
-                  <span className="wallet-picker-mark">
-                    {walletInitial(installedWallet.name)}
+                  <span
+                    className={`wallet-picker-mark${
+                      installedWallet.icon ? " has-icon" : ""
+                    }`}
+                  >
+                    {installedWallet.icon ? (
+                      <Image
+                        src={installedWallet.icon}
+                        alt=""
+                        width={38}
+                        height={38}
+                        unoptimized
+                      />
+                    ) : (
+                      walletInitial(installedWallet.name)
+                    )}
                   </span>
                   <span>
                     <strong>{installedWallet.name}</strong>

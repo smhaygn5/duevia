@@ -30,6 +30,17 @@ export function sortWalletProviders<T extends Eip6963ProviderDetail>(
   });
 }
 
+export function safeWalletIcon(icon: string) {
+  const value = icon.trim();
+  if (
+    value.length > 100_000 ||
+    !/^data:image\/(?:png|gif|jpe?g|webp|svg\+xml)(?:;[^,]*)?,/i.test(value)
+  ) {
+    return null;
+  }
+  return value;
+}
+
 export function legacyWalletName(provider: EthereumProvider) {
   if (provider.isOkxWallet) return "OKX Wallet";
   if (provider.isRabby) return "Rabby Wallet";

@@ -1087,6 +1087,18 @@ button:disabled,
   width: 38px;
 }
 
+.wallet-picker-mark.has-icon {
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.wallet-picker-mark img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
 .wallet-picker-empty {
   align-items: flex-start;
   background: rgba(255, 190, 92, 0.06);
