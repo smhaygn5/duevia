@@ -1,4 +1,4 @@
-import { getAddress, isAddress, verifyMessage } from "viem";
+import { getAddress, isAddress } from "viem";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { ARC } from "@/lib/arc/config";
@@ -8,6 +8,7 @@ import {
   SESSION_DURATION_MS,
   sha256,
 } from "@/lib/auth/server";
+import { verifyWalletSignature } from "@/lib/auth/verify-wallet-signature";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 
 const requestSchema = z.object({
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const valid = await verifyMessage({
+    const valid = await verifyWalletSignature({
       address,
       message: challenge.message,
       signature: input.signature as `0x${string}`,
