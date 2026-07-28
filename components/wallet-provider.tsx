@@ -37,6 +37,7 @@ type WalletContextValue = {
   activeWalletName: string | null;
   clearError: () => void;
   connect: (walletId: string) => Promise<boolean>;
+  ensureProvider: () => Promise<EthereumProvider>;
   switchToArc: () => Promise<void>;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -189,6 +190,48 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [providers],
   );
 
+  const ensureProvider = useCallback(async () => {
+    if (!address) {
+      throw new Error("Connect the agreement client wallet before funding.");
+    }
+
+    const candidates = activeProvider
+      ? [
+          activeProvider,
+          ...providers.filter(
+            (detail) => detail.info.uuid !== activeProvider.info.uuid,
+          ),
+        ]
+      : providers.length
+        ? providers
+        : sortWalletProviders(legacyProviders());
+
+    for (const detail of candidates) {
+      try {
+        const accounts = await detail.provider.request<string[]>({
+          method: "eth_accounts",
+        });
+        const hasSessionAccount = accounts.some(
+          (account) => account.toLowerCase() === address.toLowerCase(),
+        );
+        if (!hasSessionAccount) continue;
+        const network = await detail.provider.request<string>({
+          method: "eth_chainId",
+        });
+        setSelectedEthereumProvider(detail.provider);
+        setActiveProvider(detail);
+        setChainId(Number.parseInt(network, 16));
+        return detail.provider;
+      } catch {
+        // Continue through installed providers without opening an unsolicited prompt.
+      }
+    }
+
+    throw new Error(
+      "Unlock the client wallet and choose Reconnect wallet before funding. The signed-in account must also be active in the extension.",
+    );
+  }, [activeProvider, address, providers]);
+
   useEffect(() => {
     if (!authenticated || !address || activeProvider || providers.length === 0) {
       return;
@@ -265,16 +308,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   );
 
   const switchToArc = useCallback(async () => {
-    const provider = activeProvider?.provider;
-    if (!provider) {
-      const message = "Choose an installed EVM wallet before switching networks.";
-      setError(message);
-      throw new Error(message);
-    }
     setBusy(true);
     setError(null);
     const chainIdHex = `0x${ARC.chainId.toString(16)}`;
     try {
+      const provider = await ensureProvider();
       const currentChain = await provider.request<string>({
         method: "eth_chainId",
       });
@@ -327,7 +365,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setBusy(false);
     }
-  }, [activeProvider]);
+  }, [ensureProvider]);
 
   const signIn = useCallback(async () => {
     const provider = activeProvider?.provider;
@@ -411,6 +449,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       activeWalletName: activeProvider?.info.name ?? null,
       clearError: () => setError(null),
       connect,
+      ensureProvider,
       switchToArc,
       signIn,
       signOut,
@@ -422,6 +461,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       busy,
       chainId,
       connect,
+      ensureProvider,
       error,
       installedWallets,
       ready,

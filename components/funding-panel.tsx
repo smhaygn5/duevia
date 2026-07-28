@@ -138,7 +138,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
     }
     setBusy(true);
     try {
-      setQuote(await estimateArcBridge(source, amount));
+      const provider = await wallet.ensureProvider();
+      setQuote(await estimateArcBridge(source, amount, provider));
     } catch (quoteError) {
       setError(
         quoteError instanceof Error
@@ -185,7 +186,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             ? "Resuming the existing Circle route without starting over."
             : "Circle is moving USDC to Arc. Confirm each wallet step.",
         );
-        await executeArcBridge(source, amount, wallet.address);
+        const provider = await wallet.ensureProvider();
+        await executeArcBridge(source, amount, wallet.address, provider);
         setBridgeComplete(true);
         setBridgeResumeReady(false);
         setProgress("USDC arrived on Arc. Continue to deploy the escrow.");
@@ -293,6 +295,17 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           ),
         );
       } else {
+        const walletMessage =
+          fundingError instanceof Error ? fundingError.message : "";
+        if (
+          fundingStage === "network" &&
+          /unlock|reconnect wallet|connect the agreement client/i.test(
+            walletMessage,
+          )
+        ) {
+          setError(walletMessage);
+          return;
+        }
         const fallback =
           fundingStage === "recovery"
             ? "The agreement escrow could not be verified against Arc. Reload the agreement before continuing."

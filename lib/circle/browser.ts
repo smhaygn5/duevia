@@ -90,8 +90,12 @@ type ResumableBridge = {
 
 let resumableBridge: ResumableBridge | null = null;
 
-async function createBridgeContext(source: FundingSource) {
-  const selectedProvider = getSelectedEthereumProvider();
+async function createBridgeContext(
+  source: FundingSource,
+  explicitProvider?: EthereumProvider,
+) {
+  const selectedProvider =
+    explicitProvider ?? getSelectedEthereumProvider();
   if (!selectedProvider) {
     throw new Error("Choose and connect an EVM wallet first.");
   }
@@ -121,7 +125,13 @@ async function createBridgeContext(source: FundingSource) {
       supportedChains,
     },
   });
-  return { kit, adapter, sourceChain, destinationChain };
+  return {
+    kit,
+    adapter,
+    provider: selectedProvider,
+    sourceChain,
+    destinationChain,
+  };
 }
 
 function bridgeKey(source: FundingSource, amount: string, account: Address) {
@@ -180,8 +190,7 @@ async function verifySourceFunds(
   amount: string,
   expectedAccount: Address,
 ) {
-  const provider = getSelectedEthereumProvider();
-  if (!provider) throw new ArcBridgeError("Choose and connect an EVM wallet first.");
+  const provider = context.provider;
   const option = await switchToSourceNetwork(provider, source);
   const accounts = await provider.request<string[]>({ method: "eth_accounts" });
   const activeAccount = accounts[0];
@@ -247,9 +256,10 @@ function assertBridgeSuccess(
 export async function estimateArcBridge(
   source: FundingSource,
   amount: string,
+  provider?: EthereumProvider,
 ): Promise<BridgeQuote> {
   const { kit, adapter, sourceChain, destinationChain } =
-    await createBridgeContext(source);
+    await createBridgeContext(source, provider);
   const result = await kit.estimateBridge({
     from: { adapter, chain: sourceChain },
     to: { adapter, chain: destinationChain, useForwarder: true },
@@ -283,13 +293,14 @@ export async function executeArcBridge(
   source: FundingSource,
   amount: string,
   account: Address,
+  provider?: EthereumProvider,
 ) {
   if (source === "Arc_Testnet") {
     return { state: "success" as const, steps: 0 };
   }
   const key = bridgeKey(source, amount, account);
   if (resumableBridge?.key === key) {
-    const context = await createBridgeContext(source);
+    const context = await createBridgeContext(source, provider);
     let result: BridgeResultLike;
     try {
       result = await resumableBridge.resume();
@@ -305,7 +316,7 @@ export async function executeArcBridge(
     };
   }
 
-  const context = await createBridgeContext(source);
+  const context = await createBridgeContext(source, provider);
   await verifySourceFunds(context, source, amount, account);
   const { kit, adapter, sourceChain, destinationChain } = context;
   const result = await kit.bridge({
