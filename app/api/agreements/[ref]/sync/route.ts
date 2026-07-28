@@ -12,6 +12,7 @@ import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import { getWalletSession } from "@/lib/auth/server";
 import {
   agreementOnchainRef,
+  agreementRecoveryCandidates,
   milestoneOnchainRef,
 } from "@/lib/agreements/onchain-proof";
 import { withArcRpcRetry } from "@/lib/arc/rpc-retry";
@@ -167,7 +168,8 @@ export async function POST(
       );
     }
     const now = Date.now();
-    const expectedAgreementRef = agreementOnchainRef({
+    let proofVersion = agreement.version;
+    let expectedAgreementRef = agreementOnchainRef({
       version: agreement.version,
       publicRef: agreement.public_ref,
       agreementHash: agreement.agreement_hash,
@@ -195,6 +197,19 @@ export async function POST(
         provider: Address;
         totalAmount: bigint;
       };
+      const matchingProof = agreementRecoveryCandidates({
+        version: agreement.version,
+        publicRef: agreement.public_ref,
+        agreementHash: agreement.agreement_hash,
+      }).find(
+        (candidate) =>
+          candidate.agreementRef.toLowerCase() ===
+          args.agreementRef.toLowerCase(),
+      );
+      if (matchingProof) {
+        proofVersion = matchingProof.version;
+        expectedAgreementRef = matchingProof.agreementRef;
+      }
       if (
         args.agreementRef.toLowerCase() !== expectedAgreementRef.toLowerCase() ||
         !sameAddress(args.client, agreement.client_address) ||
@@ -261,7 +276,7 @@ export async function POST(
           return (
             ref.toLowerCase() ===
               milestoneOnchainRef({
-                version: agreement.version,
+                version: proofVersion,
                 publicRef: agreement.public_ref,
                 milestoneHash: milestone.milestone_hash,
               }).toLowerCase() &&
@@ -283,10 +298,11 @@ export async function POST(
       await db.batch([
         db
           .prepare(
-            `UPDATE agreements SET contract_address = ?, updated_at = ?
+            `UPDATE agreements
+             SET contract_address = ?, version = ?, updated_at = ?
              WHERE id = ? AND contract_address IS NULL`,
           )
-          .bind(args.escrow, now, agreement.id),
+          .bind(args.escrow, proofVersion, now, agreement.id),
         db
           .prepare(
             `INSERT INTO activities (

@@ -22,6 +22,27 @@ export function agreementOnchainRef(input: {
   );
 }
 
+export function agreementRecoveryCandidates(input: {
+  version: number;
+  publicRef: string;
+  agreementHash: string;
+}) {
+  const current = {
+    version: input.version,
+    agreementRef: agreementOnchainRef(input),
+  };
+  if (input.version < 2) return [current];
+
+  const legacy = {
+    version: 1,
+    agreementRef: agreementOnchainRef({ ...input, version: 1 }),
+  };
+  return current.agreementRef.toLowerCase() ===
+    legacy.agreementRef.toLowerCase()
+    ? [current]
+    : [current, legacy];
+}
+
 export function milestoneOnchainRef(input: {
   version: number;
   publicRef: string;

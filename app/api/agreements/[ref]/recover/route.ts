@@ -2,11 +2,12 @@ import {
   getAddress,
   isAddress,
   zeroAddress,
+  type Address,
 } from "viem";
 import { NextRequest, NextResponse } from "next/server";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import {
-  agreementOnchainRef,
+  agreementRecoveryCandidates,
   milestoneOnchainRef,
 } from "@/lib/agreements/onchain-proof";
 import { isArcRpcBusy, withArcRpcRetry } from "@/lib/arc/rpc-retry";
@@ -100,20 +101,31 @@ export async function POST(
         { status: 503 },
       );
     }
-    const expectedAgreementRef = agreementOnchainRef({
+    const proofCandidates = agreementRecoveryCandidates({
       version: agreement.version,
       publicRef: agreement.public_ref,
       agreementHash: agreement.agreement_hash,
     });
     const publicClient = createDueviaPublicClient();
-    const registeredEscrow = await withArcRpcRetry(() =>
-      publicClient.readContract({
-        address: factoryAddress,
-        abi: dueviaFactoryAbi,
-        functionName: "escrowByAgreement",
-        args: [expectedAgreementRef],
-      }),
-    );
+    let registeredEscrow: Address = zeroAddress;
+    let proofVersion = agreement.version;
+    let expectedAgreementRef = proofCandidates[0]!.agreementRef;
+    for (const candidate of proofCandidates) {
+      const candidateEscrow = await withArcRpcRetry(() =>
+        publicClient.readContract({
+          address: factoryAddress,
+          abi: dueviaFactoryAbi,
+          functionName: "escrowByAgreement",
+          args: [candidate.agreementRef],
+        }),
+      );
+      if (candidateEscrow !== zeroAddress) {
+        registeredEscrow = candidateEscrow;
+        proofVersion = candidate.version;
+        expectedAgreementRef = candidate.agreementRef;
+        break;
+      }
+    }
     const storedEscrow =
       agreement.contract_address && isAddress(agreement.contract_address)
         ? getAddress(agreement.contract_address)
@@ -201,7 +213,7 @@ export async function POST(
         termsMatch &&
         milestoneRef.toLowerCase() ===
           milestoneOnchainRef({
-            version: agreement.version,
+            version: proofVersion,
             publicRef: agreement.public_ref,
             milestoneHash: milestone.milestone_hash,
           }).toLowerCase() &&
@@ -222,15 +234,17 @@ export async function POST(
 
     const addressChanged =
       !storedEscrow || !sameAddress(storedEscrow, escrow);
-    if (addressChanged) {
+    const versionChanged = agreement.version !== proofVersion;
+    if (addressChanged || versionChanged) {
       const now = Date.now();
       await db.batch([
         db
           .prepare(
-            `UPDATE agreements SET contract_address = ?, updated_at = ?
+            `UPDATE agreements
+             SET contract_address = ?, version = ?, updated_at = ?
              WHERE id = ?`,
           )
-          .bind(escrow, now, agreement.id),
+          .bind(escrow, proofVersion, now, agreement.id),
         db
           .prepare(
             `INSERT INTO activities (
@@ -245,6 +259,7 @@ export async function POST(
             JSON.stringify({
               contractAddress: escrow,
               replacedAddress: storedEscrow,
+              recoveredVersion: proofVersion,
             }),
             now,
             now,
@@ -254,7 +269,8 @@ export async function POST(
     }
     return NextResponse.json({
       contractAddress: getAddress(escrow),
-      recovered: addressChanged,
+      recovered: addressChanged || versionChanged,
+      agreementVersion: proofVersion,
     });
   } catch (error) {
     return NextResponse.json(

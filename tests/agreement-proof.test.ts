@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   agreementOnchainRef,
+  agreementRecoveryCandidates,
   milestoneOnchainRef,
   storedProof,
 } from "../lib/agreements/onchain-proof";
@@ -65,4 +66,25 @@ test("version two onchain proofs are unique per agreement", () => {
 
 test("stored proofs reject malformed hashes", () => {
   assert.throws(() => storedProof("not-a-proof"), /stored agreement proof/i);
+});
+
+test("recovery checks the current proof before a legacy orphan proof", () => {
+  const candidates = agreementRecoveryCandidates({
+    version: 2,
+    publicRef: "DV-ORPHAN",
+    agreementHash,
+  });
+  assert.deepEqual(
+    candidates.map((candidate) => candidate.version),
+    [2, 1],
+  );
+  assert.equal(candidates[1]?.agreementRef, storedProof(agreementHash));
+  assert.deepEqual(
+    agreementRecoveryCandidates({
+      version: 1,
+      publicRef: "DV-LEGACY",
+      agreementHash,
+    }).map((candidate) => candidate.version),
+    [1],
+  );
 });
