@@ -3,6 +3,7 @@
 import { Home } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "./theme-toggle";
 import { WalletButton } from "./wallet-button";
 
 function workspaceLocation(pathname: string) {
@@ -33,7 +34,10 @@ export function WorkspaceBar() {
         <span aria-hidden="true">/</span>
         <strong>{workspaceLocation(pathname)}</strong>
       </div>
-      <WalletButton />
+      <div className="workspace-bar-actions">
+        <ThemeToggle />
+        <WalletButton />
+      </div>
     </div>
   );
 }

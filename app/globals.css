@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: dark;
   --background: #020618;
   --surface: #080d21;
   --surface-raised: #0d132b;
@@ -12,6 +13,65 @@
   --accent-bright: #a8b2ff;
   --success: #62e3ad;
   --danger: #ff8e9b;
+  --danger-background: #26101c;
+  --danger-strong: #ffc2c9;
+  --muted-soft: #6f7893;
+  --on-foreground: #050817;
+  --panel-glass: rgba(8, 13, 33, 0.72);
+  --panel-strong: rgba(8, 13, 33, 0.9);
+  --popover-background: #0a0f22;
+  --sidebar-background: rgba(4, 8, 25, 0.82);
+  --warning: #ffd594;
+  --wash-02: rgba(255, 255, 255, 0.02);
+  --wash-025: rgba(255, 255, 255, 0.025);
+  --wash-035: rgba(255, 255, 255, 0.035);
+  --wash-04: rgba(255, 255, 255, 0.04);
+  --wash-05: rgba(255, 255, 255, 0.05);
+  --wash-055: rgba(255, 255, 255, 0.055);
+  --wash-07: rgba(255, 255, 255, 0.07);
+  --wash-075: rgba(255, 255, 255, 0.075);
+  --wash-08: rgba(255, 255, 255, 0.08);
+  --page-background:
+    radial-gradient(circle at 78% 8%, rgba(92, 111, 255, 0.13), transparent 30rem),
+    radial-gradient(circle at 15% 30%, rgba(47, 207, 180, 0.05), transparent 24rem),
+    var(--background);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --background: #f4f6fb;
+  --surface: #ffffff;
+  --surface-raised: #edf1f8;
+  --line: rgba(30, 39, 75, 0.13);
+  --line-strong: rgba(30, 39, 75, 0.22);
+  --foreground: #101528;
+  --muted: #667089;
+  --accent: #5265e8;
+  --accent-bright: #4052bf;
+  --success: #13795b;
+  --danger: #bd3e55;
+  --danger-background: #fff0f2;
+  --danger-strong: #a52b43;
+  --muted-soft: #7b849b;
+  --on-foreground: #ffffff;
+  --panel-glass: rgba(255, 255, 255, 0.82);
+  --panel-strong: rgba(255, 255, 255, 0.94);
+  --popover-background: #ffffff;
+  --sidebar-background: rgba(255, 255, 255, 0.86);
+  --warning: #906018;
+  --wash-02: rgba(17, 25, 53, 0.02);
+  --wash-025: rgba(17, 25, 53, 0.025);
+  --wash-035: rgba(17, 25, 53, 0.035);
+  --wash-04: rgba(17, 25, 53, 0.04);
+  --wash-05: rgba(17, 25, 53, 0.05);
+  --wash-055: rgba(17, 25, 53, 0.055);
+  --wash-07: rgba(17, 25, 53, 0.07);
+  --wash-075: rgba(17, 25, 53, 0.075);
+  --wash-08: rgba(17, 25, 53, 0.08);
+  --page-background:
+    radial-gradient(circle at 78% 8%, rgba(82, 101, 232, 0.1), transparent 30rem),
+    radial-gradient(circle at 15% 30%, rgba(19, 121, 91, 0.06), transparent 24rem),
+    var(--background);
 }
 
 * {
@@ -24,10 +84,7 @@ html {
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at 78% 8%, rgba(92, 111, 255, 0.13), transparent 30rem),
-    radial-gradient(circle at 15% 30%, rgba(47, 207, 180, 0.05), transparent 24rem),
-    var(--background);
+  background: var(--page-background);
   color: var(--foreground);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -61,6 +118,39 @@ a {
   padding: 24px 28px;
 }
 
+.site-nav-actions,
+.workspace-bar-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.theme-toggle {
+  align-items: center;
+  background: var(--wash-035);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--foreground);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 680;
+  gap: 8px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 13px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.theme-toggle:hover {
+  background: var(--wash-07);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
 .wordmark {
   align-items: center;
   display: inline-flex;
@@ -84,6 +174,22 @@ a {
   display: none;
   height: 36px;
   width: 36px;
+}
+
+.brand-logo-light {
+  display: none;
+}
+
+:root[data-theme="light"] .brand-logo-dark {
+  display: none;
+}
+
+:root[data-theme="light"] .brand-logo-full.brand-logo-light {
+  display: block;
+}
+
+:root[data-theme="light"] .brand-logo-mark.brand-logo-light {
+  display: none;
 }
 
 .site-nav .brand-logo-full {
@@ -137,7 +243,7 @@ a {
 }
 
 .button-quiet {
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--wash-035);
   border-color: var(--line);
 }
 
@@ -147,7 +253,7 @@ a {
 
 .button-primary {
   background: var(--foreground);
-  color: #050817;
+  color: var(--on-foreground);
 }
 
 .hero {
@@ -232,7 +338,7 @@ a {
 .agreement-preview {
   background:
     linear-gradient(145deg, rgba(124, 140, 255, 0.1), transparent 45%),
-    rgba(8, 13, 33, 0.9);
+    var(--panel-strong);
   border: 1px solid var(--line-strong);
   border-radius: 24px;
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.3);
@@ -287,7 +393,7 @@ a {
 }
 
 .progress-track {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--wash-07);
   border-radius: 999px;
   height: 4px;
   margin: 27px 0;
@@ -325,7 +431,7 @@ a {
 
 .milestone-state {
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--wash-05);
   border: 1px solid var(--line);
   border-radius: 9px;
   color: var(--muted);
@@ -689,10 +795,23 @@ a {
     padding: 19px 18px;
   }
 
-  .site-nav > .button {
+  .site-nav-actions {
+    gap: 8px;
+  }
+
+  .site-nav-actions > .button {
     font-size: 0;
     padding: 0;
     width: 44px;
+  }
+
+  .theme-toggle {
+    padding: 0;
+    width: 44px;
+  }
+
+  .theme-toggle span {
+    display: none;
   }
 
   .hero,
@@ -828,7 +947,7 @@ button:disabled,
 }
 
 .product-sidebar {
-  background: rgba(4, 8, 25, 0.82);
+  background: var(--sidebar-background);
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
@@ -950,7 +1069,7 @@ button:disabled,
 }
 
 .workspace-bar-location > span {
-  color: #5f6881;
+  color: var(--muted-soft);
 }
 
 .workspace-bar-location strong {
@@ -1005,7 +1124,7 @@ button:disabled,
 
 .wallet-button {
   align-items: center;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--wash-04);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   color: var(--foreground);
@@ -1026,7 +1145,7 @@ button:disabled,
 }
 
 .wallet-account-menu {
-  background: #0a0f22;
+  background: var(--popover-background);
   border: 1px solid var(--line-strong);
   border-radius: 15px;
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
@@ -1115,10 +1234,10 @@ button:disabled,
 }
 
 .wallet-error {
-  background: #26101c;
+  background: var(--danger-background);
   border: 1px solid rgba(255, 142, 155, 0.28);
   border-radius: 9px;
-  color: #ffc2c9;
+  color: var(--danger-strong);
   font-size: 10px;
   line-height: 1.4;
   margin-top: 8px;
@@ -1144,7 +1263,7 @@ button:disabled,
 .wallet-picker {
   background:
     radial-gradient(circle at top right, rgba(124, 140, 255, 0.11), transparent 42%),
-    #0a0f22;
+    var(--popover-background);
   border: 1px solid var(--line-strong);
   border-radius: 20px;
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.46);
@@ -1187,7 +1306,7 @@ button:disabled,
 
 .wallet-picker-close {
   align-items: center;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--wash-04);
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--muted);
@@ -1207,7 +1326,7 @@ button:disabled,
 
 .wallet-picker-list > button {
   align-items: center;
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--wash-025);
   border: 1px solid var(--line);
   border-radius: 13px;
   color: var(--foreground);
@@ -1265,7 +1384,7 @@ button:disabled,
 }
 
 .wallet-picker-mark.has-icon {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--wash-08);
   overflow: hidden;
 }
 
@@ -1288,7 +1407,7 @@ button:disabled,
 }
 
 .wallet-picker-empty > svg {
-  color: #ffc86f;
+  color: var(--warning);
   flex: 0 0 auto;
 }
 
@@ -1352,7 +1471,7 @@ button:disabled,
 .panel {
   background:
     linear-gradient(145deg, rgba(124, 140, 255, 0.035), transparent 38%),
-    rgba(8, 13, 33, 0.76);
+    var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 17px;
 }
@@ -1424,7 +1543,7 @@ button:disabled,
 }
 
 .workspace-disclosure-demo strong {
-  color: #ffc86f;
+  color: var(--warning);
 }
 
 .workspace-disclosure-verified {
@@ -1442,7 +1561,7 @@ button:disabled,
 }
 
 .workspace-disclosure-error strong {
-  color: #ff8ca0;
+  color: var(--danger-strong);
 }
 
 .attention-icon,
@@ -1493,7 +1612,7 @@ button:disabled,
 }
 
 .metric-card {
-  background: rgba(8, 13, 33, 0.72);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 15px;
   display: grid;
@@ -1651,7 +1770,7 @@ button:disabled,
 }
 
 .status-badge {
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--wash-055);
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
@@ -1682,7 +1801,7 @@ button:disabled,
 .status-pending {
   background: rgba(255, 201, 107, 0.09);
   border-color: rgba(255, 201, 107, 0.2);
-  color: #ffd594;
+  color: var(--warning);
 }
 
 .list-toolbar {
@@ -1695,7 +1814,7 @@ button:disabled,
 
 .search-field {
   align-items: center;
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--wash-035);
   border: 1px solid var(--line);
   border-radius: 11px;
   color: var(--muted);
@@ -1717,7 +1836,7 @@ button:disabled,
 }
 
 .search-field input::placeholder {
-  color: #6f7893;
+  color: var(--muted-soft);
 }
 
 .filter-tabs,
@@ -1725,7 +1844,7 @@ button:disabled,
 .funding-method-tabs,
 .upload-tabs {
   align-items: center;
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--wash-025);
   border: 1px solid var(--line);
   border-radius: 11px;
   display: flex;
@@ -1750,7 +1869,7 @@ button:disabled,
 .activity-filters button.active,
 .funding-method-tabs button.active,
 .upload-tabs button.active {
-  background: rgba(255, 255, 255, 0.075);
+  background: var(--wash-075);
   color: var(--foreground);
 }
 
@@ -1761,7 +1880,7 @@ button:disabled,
 
 .agreement-list-card {
   align-items: center;
-  background: rgba(8, 13, 33, 0.68);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 14px;
   display: grid;
@@ -1821,7 +1940,7 @@ button:disabled,
 }
 
 .agreement-form-main {
-  background: rgba(8, 13, 33, 0.68);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 17px;
 }
@@ -1879,7 +1998,7 @@ button:disabled,
 .field input,
 .field select,
 .field textarea {
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--wash-035);
   border: 1px solid var(--line);
   border-radius: 9px;
   color: var(--foreground);
@@ -1920,7 +2039,7 @@ button:disabled,
 }
 
 .milestone-editor {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--wash-02);
   border: 1px solid var(--line);
   border-radius: 13px;
   padding: 16px;
@@ -2090,7 +2209,7 @@ button:disabled,
   background: rgba(255, 91, 115, 0.08);
   border: 1px solid rgba(255, 142, 155, 0.22);
   border-radius: 9px;
-  color: #ffb2bc;
+  color: var(--danger-strong);
   font-size: 10px;
   line-height: 1.5;
   margin: 13px 0;
@@ -2125,7 +2244,7 @@ button:disabled,
 .decision-result-icon.warning {
   background: rgba(255, 201, 107, 0.1);
   border-color: rgba(255, 201, 107, 0.22);
-  color: #ffd594;
+  color: var(--warning);
 }
 
 .creation-success > p,
@@ -2161,7 +2280,7 @@ button:disabled,
 .invite-link-box,
 .submission-result,
 .decision-note {
-  background: rgba(8, 13, 33, 0.78);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 13px;
   margin: 26px 0;
@@ -2198,7 +2317,7 @@ button:disabled,
 
 .invite-link-box button {
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--wash-05);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--foreground);
@@ -2233,7 +2352,7 @@ button:disabled,
 }
 
 .agreement-financials article {
-  background: rgba(8, 13, 33, 0.7);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 14px;
   display: grid;
@@ -2333,7 +2452,7 @@ button:disabled,
 }
 
 .detail-milestone-copy small {
-  color: #6f7893;
+  color: var(--muted-soft);
   display: block;
   font-size: 9px;
   margin-top: 8px;
@@ -2475,7 +2594,7 @@ button:disabled,
 }
 
 .funding-agreement-card {
-  background: rgba(8, 13, 33, 0.7);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 14px;
   display: grid;
@@ -2759,7 +2878,7 @@ button:disabled,
 }
 
 .submission-main {
-  background: rgba(8, 13, 33, 0.68);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 17px;
   padding: 30px;
@@ -2816,7 +2935,7 @@ button:disabled,
 .upload-file,
 .deliverable-row {
   align-items: center;
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--wash-025);
   border: 1px solid var(--line);
   border-radius: 11px;
   display: grid;
@@ -2892,7 +3011,7 @@ button:disabled,
 }
 
 .review-clock {
-  background: rgba(8, 13, 33, 0.7);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 13px;
   display: grid;
@@ -2908,7 +3027,7 @@ button:disabled,
 }
 
 .review-clock strong {
-  color: #ffd594;
+  color: var(--warning);
   font-size: 16px;
 }
 
@@ -2994,7 +3113,7 @@ button:disabled,
 
 .review-amount,
 .confirm-release {
-  background: rgba(255, 255, 255, 0.028);
+  background: var(--wash-025);
   border: 1px solid var(--line);
   border-radius: 12px;
   display: grid;
@@ -3045,7 +3164,7 @@ button:disabled,
   background: rgba(255, 201, 107, 0.08);
   border: 1px solid rgba(255, 201, 107, 0.18);
   border-radius: 9px;
-  color: #ffd594;
+  color: var(--warning);
   display: flex;
   font-size: 9px;
   gap: 8px;
@@ -3296,7 +3415,7 @@ button:disabled,
 }
 
 .settings-form {
-  background: rgba(8, 13, 33, 0.68);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 17px;
 }
@@ -3347,7 +3466,7 @@ button:disabled,
 
 .settings-readonly {
   align-items: center;
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--wash-025);
   border: 1px solid var(--line);
   border-radius: 9px;
   display: flex;
@@ -3437,7 +3556,7 @@ button:disabled,
 
 .recovery-option {
   align-items: start;
-  background: rgba(8, 13, 33, 0.7);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 14px;
   color: var(--foreground);
@@ -3568,7 +3687,7 @@ button:disabled,
 }
 
 .invite-summary {
-  background: rgba(8, 13, 33, 0.76);
+  background: var(--panel-glass);
   border: 1px solid var(--line-strong);
   border-radius: 17px;
   display: grid;
@@ -3717,7 +3836,7 @@ button:disabled,
 }
 
 .decision-ticket {
-  background: rgba(8, 13, 33, 0.78);
+  background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 14px;
   display: grid;
@@ -3797,7 +3916,23 @@ button:disabled,
     display: none;
   }
 
-  .product-sidebar .brand-logo-compact .brand-logo-mark {
+  .product-sidebar
+    .brand-logo-compact
+    .brand-logo-mark.brand-logo-dark {
+    display: block;
+  }
+
+  :root[data-theme="light"]
+    .product-sidebar
+    .brand-logo-compact
+    .brand-logo-mark.brand-logo-dark {
+    display: none;
+  }
+
+  :root[data-theme="light"]
+    .product-sidebar
+    .brand-logo-compact
+    .brand-logo-mark.brand-logo-light {
     display: block;
   }
 
@@ -3913,6 +4048,12 @@ button:disabled,
 
   .workspace-bar .wallet-control {
     flex: 1;
+  }
+
+  .workspace-bar-actions {
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
   }
 
   .wallet-account-menu {
@@ -4074,7 +4215,25 @@ button:disabled,
     display: none;
   }
 
-  .invite-nav-start .brand-logo-compact .brand-logo-mark {
+  .invite-nav-start
+    .brand-logo-compact
+    .brand-logo-mark.brand-logo-dark {
+    display: block;
+    height: 34px;
+    width: 34px;
+  }
+
+  :root[data-theme="light"]
+    .invite-nav-start
+    .brand-logo-compact
+    .brand-logo-mark.brand-logo-dark {
+    display: none;
+  }
+
+  :root[data-theme="light"]
+    .invite-nav-start
+    .brand-logo-compact
+    .brand-logo-mark.brand-logo-light {
     display: block;
     height: 34px;
     width: 34px;

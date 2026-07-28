@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { demoAgreement } from "@/lib/demo-data";
 import { DueviaLogo } from "./duevia-logo";
+import { ThemeToggle } from "./theme-toggle";
 import { WalletButton } from "./wallet-button";
 import { useWallet } from "./wallet-provider";
 
@@ -94,6 +95,7 @@ function InvitationNavigation() {
           <i />
           Arc Testnet
         </span>
+        <ThemeToggle />
         <WalletButton />
       </div>
     </nav>

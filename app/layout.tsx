@@ -61,9 +61,29 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  colorScheme: "dark",
+  colorScheme: "dark light",
   themeColor: "#020618",
 };
+
+const themeScript = `
+  (() => {
+    try {
+      const storedTheme = localStorage.getItem("duevia-theme");
+      const systemTheme = matchMedia("(prefers-color-scheme: light)").matches
+        ? "light"
+        : "dark";
+      const theme =
+        storedTheme === "light" || storedTheme === "dark"
+          ? storedTheme
+          : systemTheme;
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+    } catch {
+      document.documentElement.dataset.theme = "dark";
+      document.documentElement.style.colorScheme = "dark";
+    }
+  })();
+`;
 
 export default function RootLayout({
   children,
@@ -71,7 +91,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         <WalletProvider>{children}</WalletProvider>
       </body>

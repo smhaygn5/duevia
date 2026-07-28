@@ -16,7 +16,7 @@ export function DueviaLogo({
   return (
     <span className={className} aria-hidden="true">
       <Image
-        className="brand-logo-full"
+        className="brand-logo-full brand-logo-dark"
         src="/duevia-logo-dark.svg"
         alt=""
         width={600}
@@ -25,8 +25,26 @@ export function DueviaLogo({
         unoptimized
       />
       <Image
-        className="brand-logo-mark"
+        className="brand-logo-full brand-logo-light"
+        src="/duevia-logo-light.svg"
+        alt=""
+        width={600}
+        height={216}
+        priority={priority}
+        unoptimized
+      />
+      <Image
+        className="brand-logo-mark brand-logo-dark"
         src="/duevia-mark-dark.svg"
+        alt=""
+        width={192}
+        height={192}
+        priority={priority}
+        unoptimized
+      />
+      <Image
+        className="brand-logo-mark brand-logo-light"
+        src="/duevia-mark-light.svg"
         alt=""
         width={192}
         height={192}
