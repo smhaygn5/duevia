@@ -64,22 +64,38 @@ a {
 .wordmark {
   align-items: center;
   display: inline-flex;
-  font-size: 20px;
-  font-weight: 760;
-  gap: 10px;
-  letter-spacing: -0.04em;
+  flex: 0 0 auto;
+  line-height: 0;
 }
 
-.wordmark-mark {
+.brand-logo {
   align-items: center;
-  background: var(--foreground);
-  border-radius: 8px;
-  color: var(--background);
   display: inline-flex;
-  font-size: 17px;
-  height: 29px;
-  justify-content: center;
-  width: 29px;
+  line-height: 0;
+}
+
+.brand-logo-full {
+  display: block;
+  height: auto;
+  width: 122px;
+}
+
+.brand-logo-mark {
+  display: none;
+  height: 36px;
+  width: 36px;
+}
+
+.site-nav .brand-logo-full {
+  width: 132px;
+}
+
+.product-sidebar .brand-logo-full {
+  width: 120px;
+}
+
+.invite-nav .brand-logo-full {
+  width: 112px;
 }
 
 .nav-links {
@@ -3777,8 +3793,12 @@ button:disabled,
     position: relative;
   }
 
-  .product-sidebar .wordmark {
-    font-size: 0;
+  .product-sidebar .brand-logo-compact .brand-logo-full {
+    display: none;
+  }
+
+  .product-sidebar .brand-logo-compact .brand-logo-mark {
+    display: block;
   }
 
   .product-sidebar nav {
@@ -4050,8 +4070,14 @@ button:disabled,
     gap: 8px;
   }
 
-  .invite-nav-start .wordmark {
+  .invite-nav-start .brand-logo-compact .brand-logo-full {
     display: none;
+  }
+
+  .invite-nav-start .brand-logo-compact .brand-logo-mark {
+    display: block;
+    height: 34px;
+    width: 34px;
   }
 
   .invite-workspace-link {

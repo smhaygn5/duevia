@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { demoAgreement } from "@/lib/demo-data";
+import { DueviaLogo } from "./duevia-logo";
 import { WalletButton } from "./wallet-button";
 import { useWallet } from "./wallet-provider";
 
@@ -80,9 +81,8 @@ function InvitationNavigation() {
           <ArrowLeft size={15} />
           Back
         </button>
-        <Link className="wordmark" href="/">
-          <span className="wordmark-mark">d</span>
-          duevia
+        <Link className="wordmark" href="/" aria-label="Duevia home">
+          <DueviaLogo compactOnMobile />
         </Link>
       </div>
       <div className="invite-nav-actions">

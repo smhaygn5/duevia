@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ArcFoundationStatus } from "@/components/arc-foundation-status";
+import { DueviaLogo } from "@/components/duevia-logo";
 
 const steps = [
   {
@@ -37,10 +38,7 @@ export default function Home() {
     <main>
       <nav className="site-nav" aria-label="Primary navigation">
         <Link className="wordmark" href="/" aria-label="Duevia home">
-          <span className="wordmark-mark" aria-hidden="true">
-            d
-          </span>
-          duevia
+          <DueviaLogo priority />
         </Link>
         <div className="nav-links">
           <a href="#workflow">How it works</a>

@@ -24,7 +24,18 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description,
     icons: {
-      icon: "/favicon.svg",
+      icon: [
+        {
+          url: "/favicon-dark.svg",
+          type: "image/svg+xml",
+          media: "(prefers-color-scheme: dark)",
+        },
+        {
+          url: "/favicon-light.svg",
+          type: "image/svg+xml",
+          media: "(prefers-color-scheme: light)",
+        },
+      ],
       shortcut: "/favicon.svg",
     },
     openGraph: {

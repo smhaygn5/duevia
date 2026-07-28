@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { DueviaLogo } from "./duevia-logo";
 
 const links = [
   { href: "/app", label: "Overview", icon: LayoutDashboard },
@@ -27,8 +28,7 @@ export function AppSidebar() {
         href="/app"
         aria-label="Duevia workspace home"
       >
-        <span className="wordmark-mark">d</span>
-        duevia
+        <DueviaLogo compactOnMobile />
       </Link>
 
       <Link className="sidebar-create" href="/app/agreements/new">

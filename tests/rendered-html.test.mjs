@@ -50,6 +50,9 @@ test("server-renders the Duevia global landing page", async () => {
   assert.match(html, /Deliver/);
   assert.match(html, /Settle/);
   assert.match(html, /Arc Testnet/);
+  assert.match(html, /duevia-logo-dark\.svg/);
+  assert.match(html, /favicon-dark\.svg/);
+  assert.match(html, /favicon-light\.svg/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
 
@@ -62,6 +65,7 @@ test("server-renders the working workspace dashboard", async () => {
   assert.match(html, /Locked in escrow/);
   assert.match(html, /Arc Testnet/);
   assert.match(html, /Workspace home/);
+  assert.match(html, /duevia-logo-dark\.svg/);
 });
 
 test("server-renders the connected demo decision path", async () => {
@@ -81,6 +85,7 @@ test("server-renders the connected demo decision path", async () => {
   const invitationHtml = await invitation.text();
   assert.match(invitationHtml, /Invitation navigation/);
   assert.match(invitationHtml, /Workspace/);
+  assert.match(invitationHtml, /duevia-logo-dark\.svg/);
 });
 
 test("starter skeleton is fully removed", async () => {
