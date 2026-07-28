@@ -180,10 +180,6 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
         return;
       }
 
-      const onArc = await wallet.switchToArc();
-      if (!onArc) {
-        throw new Error("The Arc network switch was not completed.");
-      }
       let activeEscrow = agreementData.agreement.contract_address;
       if (!activeEscrow) {
         if (!factoryAddress) {
@@ -208,6 +204,10 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           );
           return;
         }
+      }
+
+      await wallet.switchToArc();
+      if (!activeEscrow) {
         setProgress("Deploying an isolated escrow for this agreement.");
         const receipt = await deployAgreementEscrow(
           wallet.address,

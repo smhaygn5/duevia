@@ -175,6 +175,7 @@ export function formatContractError(
   if (
     detail.includes("user rejected") ||
     detail.includes("user denied") ||
+    detail.includes("cancelled") ||
     detail.includes("4001")
   ) {
     return "The wallet request was cancelled.";

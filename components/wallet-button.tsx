@@ -38,7 +38,7 @@ export function WalletButton() {
   }, [chooserOpen]);
 
   let label = "Connect wallet";
-  let action: (() => Promise<unknown>) | null = null;
+  let action: (() => Promise<void>) | null = null;
   if (wallet.authenticated && !wallet.activeWalletName) {
     label = "Reconnect wallet";
   } else if (wallet.address && wrongNetwork) {
@@ -78,7 +78,7 @@ export function WalletButton() {
           className={`wallet-button${wallet.authenticated ? " is-authenticated" : ""}`}
           type="button"
           onClick={() => {
-            if (action) void action();
+            if (action) void action().catch(() => {});
             else openChooser();
           }}
           disabled={wallet.busy}

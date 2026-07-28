@@ -37,7 +37,7 @@ type WalletContextValue = {
   activeWalletName: string | null;
   clearError: () => void;
   connect: (walletId: string) => Promise<boolean>;
-  switchToArc: () => Promise<boolean>;
+  switchToArc: () => Promise<void>;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -267,13 +267,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const switchToArc = useCallback(async () => {
     const provider = activeProvider?.provider;
     if (!provider) {
-      setError("Choose an installed EVM wallet before switching networks.");
-      return false;
+      const message = "Choose an installed EVM wallet before switching networks.";
+      setError(message);
+      throw new Error(message);
     }
     setBusy(true);
     setError(null);
     const chainIdHex = `0x${ARC.chainId.toString(16)}`;
     try {
+      const currentChain = await provider.request<string>({
+        method: "eth_chainId",
+      });
+      if (Number.parseInt(currentChain, 16) === ARC.chainId) {
+        setChainId(ARC.chainId);
+        return;
+      }
       try {
         await provider.request({
           method: "wallet_switchEthereumChain",
@@ -312,10 +320,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         throw new Error("The Arc network switch was not completed.");
       }
       setChainId(activeChainId);
-      return true;
     } catch (switchError) {
-      setError(walletError(switchError));
-      return false;
+      const message = walletError(switchError);
+      setError(message);
+      throw new Error(message);
     } finally {
       setBusy(false);
     }
