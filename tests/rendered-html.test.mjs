@@ -52,8 +52,10 @@ test("server-renders the Duevia global landing page", async () => {
   assert.match(html, /Arc Testnet/);
   assert.match(html, /duevia-logo-dark\.svg/);
   assert.match(html, /duevia-logo-light\.svg/);
-  assert.match(html, /favicon-dark\.svg/);
-  assert.match(html, /favicon-light\.svg/);
+  assert.match(html, /favicon\.ico\?v=3/);
+  assert.match(html, /favicon\.svg\?v=3/);
+  assert.match(html, /favicon-32x32\.png\?v=3/);
+  assert.match(html, /apple-touch-icon\.png\?v=3/);
   assert.match(html, /Switch to light theme/);
   assert.match(html, /duevia-theme/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);

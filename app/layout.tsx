@@ -26,17 +26,28 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       icon: [
         {
-          url: "/favicon-dark.svg",
-          type: "image/svg+xml",
-          media: "(prefers-color-scheme: dark)",
+          url: "/favicon.ico?v=3",
+          type: "image/x-icon",
         },
         {
-          url: "/favicon-light.svg",
+          url: "/favicon.svg?v=3",
           type: "image/svg+xml",
-          media: "(prefers-color-scheme: light)",
+          sizes: "any",
+        },
+        {
+          url: "/favicon-32x32.png?v=3",
+          type: "image/png",
+          sizes: "32x32",
         },
       ],
-      shortcut: "/favicon.svg",
+      shortcut: "/favicon.ico?v=3",
+      apple: [
+        {
+          url: "/apple-touch-icon.png?v=3",
+          type: "image/png",
+          sizes: "180x180",
+        },
+      ],
     },
     openGraph: {
       title: "Duevia — Work in stages. Settle globally.",
