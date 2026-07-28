@@ -81,7 +81,9 @@ export async function POST(request: NextRequest) {
     }
 
     const proposedWalletId = crypto.randomUUID();
-    await db
+    const sessionToken = randomToken(32);
+    const sessionTokenHash = sha256(sessionToken);
+    const wallet = await db
       .prepare(
         `INSERT INTO wallets (
           id, address, chain_id, display_name, last_signed_in_at,
@@ -89,7 +91,8 @@ export async function POST(request: NextRequest) {
         ) VALUES (?, ?, ?, NULL, ?, ?, ?)
         ON CONFLICT(chain_id, address) DO UPDATE SET
           last_signed_in_at = excluded.last_signed_in_at,
-          updated_at = excluded.updated_at`,
+          updated_at = excluded.updated_at
+        RETURNING id`,
       )
       .bind(
         proposedWalletId,
@@ -99,17 +102,9 @@ export async function POST(request: NextRequest) {
         now,
         now,
       )
-      .run();
-
-    const wallet = await db
-      .prepare(
-        `SELECT id FROM wallets WHERE chain_id = ? AND address = ? LIMIT 1`,
-      )
-      .bind(ARC.chainId, address.toLowerCase())
       .first<{ id: string }>();
     if (!wallet) throw new Error("Wallet profile could not be created.");
 
-    const sessionToken = randomToken(32);
     const sessionExpiresAt = now + SESSION_DURATION_MS;
     await db
       .prepare(
@@ -121,7 +116,7 @@ export async function POST(request: NextRequest) {
       .bind(
         crypto.randomUUID(),
         wallet.id,
-        await sha256(sessionToken),
+        await sessionTokenHash,
         sessionExpiresAt,
         now,
         now,

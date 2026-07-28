@@ -4,8 +4,8 @@ export const ARC = {
   chainId: 5_042_002,
   rpcUrls: ["https://rpc.testnet.arc.network"] as const,
   readRpcUrls: [
-    "https://arc-testnet.drpc.org",
     "https://rpc.testnet.arc.network",
+    "https://arc-testnet.drpc.org",
   ] as const,
   explorerUrl: "https://testnet.arcscan.app",
   cctpDomain: 26,

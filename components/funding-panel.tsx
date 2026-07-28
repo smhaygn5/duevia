@@ -202,13 +202,13 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
         return;
       }
 
-      fundingStage = "recovery";
       const storedEscrow = agreementData.agreement.contract_address;
-      let activeEscrow = await recoverAgreementEscrow(agreementRef);
-      if (
-        activeEscrow &&
-        activeEscrow.toLowerCase() !== storedEscrow?.toLowerCase()
-      ) {
+      let activeEscrow = storedEscrow;
+      if (!activeEscrow) {
+        fundingStage = "recovery";
+        activeEscrow = await recoverAgreementEscrow(agreementRef);
+      }
+      if (activeEscrow && !storedEscrow) {
         setAgreementData((current) =>
           current
             ? {
@@ -220,11 +220,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
               }
             : current,
         );
-        setProgress(
-          storedEscrow
-            ? "The verified Arc escrow replaced a stale local address. Continue to approve the USDC amount."
-            : "Existing escrow recovered from Arc. Continue to approve the USDC amount.",
-        );
+        setProgress("Existing escrow recovered from Arc. Continue to approve the USDC amount.");
         return;
       }
       if (!activeEscrow) {

@@ -38,6 +38,27 @@ export function ensureRuntimeSchema() {
 
   schemaReady = (async () => {
     const db = getRawDb();
+    const existing = await db
+      .prepare(
+        `SELECT COUNT(*) AS table_count
+         FROM sqlite_master
+         WHERE type = 'table'
+           AND name IN (
+             'wallets',
+             'auth_challenges',
+             'wallet_sessions',
+             'agreements',
+             'milestones',
+             'submissions',
+             'deliverables',
+             'activities'
+           )`,
+      )
+      .first<{ table_count: number }>();
+    if (Number(existing?.table_count ?? 0) === 8) {
+      return;
+    }
+
     const statements = [
       `CREATE TABLE IF NOT EXISTS wallets (
         id TEXT PRIMARY KEY NOT NULL,

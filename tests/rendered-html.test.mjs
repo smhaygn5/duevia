@@ -65,17 +65,22 @@ test("server-renders the working workspace dashboard", async () => {
 });
 
 test("server-renders the connected demo decision path", async () => {
-  const [agreement, review, receipt] = await Promise.all([
+  const [agreement, review, receipt, invitation] = await Promise.all([
     render("/app/agreements/dv-7k2p"),
     render("/app/agreements/dv-7k2p/review"),
     render("/app/receipts/demo"),
+    render("/invite/demo"),
   ]);
   assert.equal(agreement.status, 200);
   assert.equal(review.status, 200);
   assert.equal(receipt.status, 200);
+  assert.equal(invitation.status, 200);
   assert.match(await agreement.text(), /Global Product Launch/);
   assert.match(await review.text(), /Approve milestone/);
   assert.match(await receipt.text(), /Demo receipt/);
+  const invitationHtml = await invitation.text();
+  assert.match(invitationHtml, /Invitation navigation/);
+  assert.match(invitationHtml, /Workspace/);
 });
 
 test("starter skeleton is fully removed", async () => {

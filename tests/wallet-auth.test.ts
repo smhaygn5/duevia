@@ -122,5 +122,5 @@ test("wallet authentication falls back to Arc for smart-account signatures", asy
   );
 
   assert.equal(valid, true);
-  assert.equal(onchainChecks, 1);
+  assert.equal(onchainChecks, 2);
 });

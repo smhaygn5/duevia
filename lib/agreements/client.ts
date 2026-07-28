@@ -73,9 +73,22 @@ export type AgreementPayload = {
   }>;
 };
 
-export async function loadAgreement(publicRef: string): Promise<AgreementPayload> {
+const agreementCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    promise: Promise<AgreementPayload>;
+  }
+>();
+
+export function invalidateAgreementCache(publicRef: string) {
+  agreementCache.delete(publicRef.toUpperCase());
+}
+
+async function requestAgreement(publicRef: string): Promise<AgreementPayload> {
   const response = await fetch(`/api/agreements/${publicRef}`, {
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
   });
   const payload = (await response.json()) as AgreementPayload & {
     message?: string;
@@ -84,6 +97,28 @@ export async function loadAgreement(publicRef: string): Promise<AgreementPayload
     throw new Error(payload.message ?? "Agreement could not be loaded.");
   }
   return payload;
+}
+
+export function loadAgreement(
+  publicRef: string,
+  options: { fresh?: boolean } = {},
+): Promise<AgreementPayload> {
+  const key = publicRef.toUpperCase();
+  const existing = agreementCache.get(key);
+  if (!options.fresh && existing && existing.expiresAt > Date.now()) {
+    return existing.promise;
+  }
+
+  const promise = requestAgreement(publicRef).catch((error) => {
+    const current = agreementCache.get(key);
+    if (current?.promise === promise) agreementCache.delete(key);
+    throw error;
+  });
+  agreementCache.set(key, {
+    expiresAt: Date.now() + 15_000,
+    promise,
+  });
+  return promise;
 }
 
 export function getCurrentMilestone(milestones: MilestoneRecord[]) {

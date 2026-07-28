@@ -12,6 +12,7 @@ import {
   type TransactionReceipt,
 } from "viem";
 import { ARC, ARC_CONTRACTS, arcTestnet } from "@/lib/arc/config";
+import { invalidateAgreementCache } from "@/lib/agreements/client";
 import { getSelectedEthereumProvider } from "@/lib/wallet/selected-provider";
 
 export const dueviaFactoryAbi = parseAbi([
@@ -83,10 +84,15 @@ export function getDueviaFactoryAddress(): Address | null {
 export function createDueviaPublicClient() {
   return createPublicClient({
     chain: arcTestnet,
+    pollingInterval: 1_000,
     transport: fallback(
       ARC.readRpcUrls.map((url) =>
-        http(url, { retryCount: 2, timeout: 8_000 }),
+        http(url, { retryCount: 1, timeout: 4_000 }),
       ),
+      {
+        retryCount: 1,
+        retryDelay: 100,
+      },
     ),
   });
 }
@@ -119,6 +125,7 @@ async function sendAndWait(
   const receipt = await publicClient.waitForTransactionReceipt({
     hash,
     confirmations: 1,
+    pollingInterval: 1_000,
     timeout: 90_000,
   });
   if (receipt.status !== "success") {
@@ -218,6 +225,7 @@ export async function recoverAgreementEscrow(
   if (!response.ok) {
     throw new Error(payload.message ?? "The existing Arc escrow could not be recovered.");
   }
+  invalidateAgreementCache(publicRef);
   return payload.contractAddress ?? null;
 }
 
@@ -317,5 +325,6 @@ export async function syncAgreementTransaction(
   if (!response.ok) {
     throw new Error(payload.message ?? "The confirmed Arc transaction could not be synced.");
   }
+  invalidateAgreementCache(publicRef);
   return payload;
 }

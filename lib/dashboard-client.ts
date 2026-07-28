@@ -95,8 +95,18 @@ export function summarizeAgreementPayloads(
   );
 }
 
-export async function loadVerifiedDashboard(): Promise<DashboardPayload> {
-  const response = await fetch("/api/agreements", { cache: "no-store" });
+let dashboardCache:
+  | {
+      expiresAt: number;
+      promise: Promise<DashboardPayload>;
+    }
+  | undefined;
+
+async function requestVerifiedDashboard(): Promise<DashboardPayload> {
+  const response = await fetch("/api/agreements", {
+    cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
+  });
   const list = (await response.json()) as AgreementListResponse;
   if (!response.ok || !list.agreements) {
     throw new Error(list.message ?? "Unable to load the verified workspace.");
@@ -121,4 +131,20 @@ export async function loadVerifiedDashboard(): Promise<DashboardPayload> {
       ...activities.map((activity) => activity.occurred_at),
     ),
   };
+}
+
+export function loadVerifiedDashboard(): Promise<DashboardPayload> {
+  if (dashboardCache && dashboardCache.expiresAt > Date.now()) {
+    return dashboardCache.promise;
+  }
+
+  const promise = requestVerifiedDashboard().catch((error) => {
+    if (dashboardCache?.promise === promise) dashboardCache = undefined;
+    throw error;
+  });
+  dashboardCache = {
+    expiresAt: Date.now() + 15_000,
+    promise,
+  };
+  return promise;
 }
