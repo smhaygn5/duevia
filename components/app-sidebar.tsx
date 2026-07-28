@@ -22,7 +22,11 @@ export function AppSidebar() {
 
   return (
     <aside className="product-sidebar">
-      <Link className="wordmark" href="/">
+      <Link
+        className="wordmark"
+        href="/app"
+        aria-label="Duevia workspace home"
+      >
         <span className="wordmark-mark">d</span>
         duevia
       </Link>

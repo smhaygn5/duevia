@@ -33,10 +33,12 @@ body {
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   min-height: 100vh;
+  cursor: default;
 }
 
 a {
   color: inherit;
+  cursor: pointer;
   text-decoration: none;
 }
 
@@ -764,6 +766,27 @@ button {
   cursor: pointer;
 }
 
+input,
+textarea,
+[contenteditable="true"] {
+  cursor: text;
+}
+
+input[readonly],
+input:disabled,
+textarea[readonly],
+textarea:disabled {
+  cursor: default;
+}
+
+select,
+input[type="checkbox"],
+input[type="radio"],
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]) {
+  cursor: pointer;
+}
+
 button:disabled,
 .button:disabled {
   cursor: not-allowed;
@@ -875,6 +898,51 @@ button:disabled,
   padding: 34px clamp(26px, 4vw, 58px) 64px;
 }
 
+.workspace-bar {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 22px;
+  justify-content: space-between;
+  margin: -10px 0 30px;
+  padding-bottom: 16px;
+}
+
+.workspace-bar-location {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 11px;
+  gap: 9px;
+  min-width: 0;
+}
+
+.workspace-bar-location a {
+  align-items: center;
+  border-radius: 8px;
+  color: var(--foreground);
+  display: inline-flex;
+  font-weight: 680;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 9px;
+  transition: background 160ms ease;
+}
+
+.workspace-bar-location a:hover {
+  background: rgba(124, 140, 255, 0.08);
+}
+
+.workspace-bar-location > span {
+  color: #5f6881;
+}
+
+.workspace-bar-location strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .product-header {
   align-items: flex-start;
   display: flex;
@@ -938,8 +1006,96 @@ button:disabled,
 }
 
 .wallet-status {
-  cursor: default;
   user-select: none;
+}
+
+.wallet-account-menu {
+  background: #0a0f22;
+  border: 1px solid var(--line-strong);
+  border-radius: 15px;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 286px;
+  z-index: 80;
+}
+
+.wallet-account-menu > header {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  margin-bottom: 3px;
+  padding: 8px 8px 11px;
+}
+
+.wallet-account-icon {
+  align-items: center;
+  background: rgba(98, 227, 173, 0.1);
+  border: 1px solid rgba(98, 227, 173, 0.2);
+  border-radius: 9px;
+  color: var(--success);
+  display: flex;
+  flex: 0 0 32px;
+  height: 32px;
+  justify-content: center;
+}
+
+.wallet-account-menu > header div,
+.wallet-account-menu > button span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.wallet-account-menu strong {
+  font-size: 11px;
+}
+
+.wallet-account-menu small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.wallet-account-menu > button {
+  align-items: flex-start;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--foreground);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 17px minmax(0, 1fr);
+  padding: 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.wallet-account-menu > button:hover,
+.wallet-account-menu > button:focus-visible {
+  background: rgba(124, 140, 255, 0.08);
+}
+
+.wallet-account-menu > button > svg {
+  color: var(--accent-bright);
+  margin-top: 1px;
+}
+
+.wallet-account-menu > button.danger {
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 9px 9px;
+  margin-top: 3px;
+  padding-top: 12px;
+}
+
+.wallet-account-menu > button.danger strong,
+.wallet-account-menu > button.danger > svg {
+  color: var(--danger);
 }
 
 .wallet-error {
@@ -2342,6 +2498,7 @@ button:disabled,
   grid-template-columns: 28px 1fr;
   min-height: 72px;
   opacity: 0.45;
+  position: relative;
 }
 
 .funding-steps li.active,
@@ -2365,6 +2522,16 @@ button:disabled,
   background: rgba(98, 227, 173, 0.1);
   border-color: rgba(98, 227, 173, 0.25);
   color: var(--success);
+}
+
+.funding-steps li.complete:not(:last-child)::after {
+  background: rgba(98, 227, 173, 0.35);
+  content: "";
+  height: 45px;
+  left: 13px;
+  position: absolute;
+  top: 27px;
+  width: 1px;
 }
 
 .funding-steps strong {
@@ -3675,6 +3842,33 @@ button:disabled,
 @media (max-width: 580px) {
   .product-main {
     padding: 22px 17px 48px;
+  }
+
+  .workspace-bar {
+    margin-top: -5px;
+  }
+
+  .workspace-bar-location > a span,
+  .workspace-bar-location > span,
+  .workspace-bar-location > strong {
+    display: none;
+  }
+
+  .workspace-bar-location > a {
+    border: 1px solid var(--line);
+    height: 44px;
+    justify-content: center;
+    padding: 0;
+    width: 44px;
+  }
+
+  .workspace-bar .wallet-control {
+    flex: 1;
+  }
+
+  .wallet-account-menu {
+    max-width: calc(100vw - 34px);
+    width: 300px;
   }
 
   .product-header {

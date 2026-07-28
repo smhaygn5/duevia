@@ -61,6 +61,7 @@ test("server-renders the working workspace dashboard", async () => {
   assert.match(html, /Review milestone/);
   assert.match(html, /Locked in escrow/);
   assert.match(html, /Arc Testnet/);
+  assert.match(html, /Workspace home/);
 });
 
 test("server-renders the connected demo decision path", async () => {

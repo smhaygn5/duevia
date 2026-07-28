@@ -30,6 +30,7 @@ import {
   loadAgreement,
   type AgreementPayload,
 } from "@/lib/agreements/client";
+import { fundingStepStatuses } from "@/lib/agreements/funding-progress";
 import {
   approveAgreementUsdc,
   deployAgreementEscrow,
@@ -58,6 +59,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
   const [bridgeResumeReady, setBridgeResumeReady] = useState(false);
   const [approved, setApproved] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [fundingSubmitted, setFundingSubmitted] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const agreement = agreementData?.agreement;
   const amount = agreement?.total_amount ?? demoAgreement.total.replace(",", "");
@@ -274,15 +276,25 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       }
 
       fundingStage = "funding";
+      setFundingSubmitted(false);
       setProgress("Locking the agreement total in escrow.");
-      const receipt = await writeEscrowAction(wallet.address, activeEscrow, {
-        name: "fund",
-        args: [],
-      });
+      const receipt = await writeEscrowAction(
+        wallet.address,
+        activeEscrow,
+        {
+          name: "fund",
+          args: [],
+        },
+        () => {
+          setFundingSubmitted(true);
+          setProgress("Funding submitted to Arc. Waiting for confirmation.");
+        },
+      );
       await syncAgreementTransaction(agreementRef, receipt);
       setConfirmed(true);
       setProgress("Funding confirmed on Arc. The provider can now begin.");
     } catch (fundingError) {
+      setFundingSubmitted(false);
       setProgress(null);
       if (fundingStage === "bridge") {
         setBridgeResumeReady(
@@ -336,6 +348,11 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           : !approved
             ? "Approve agreement amount"
             : "Fund escrow";
+  const stepStatuses = fundingStepStatuses({
+    prepared: Boolean(quote) || bridgeComplete || approved,
+    transactionSubmitted: fundingSubmitted,
+    confirmed,
+  });
 
   return (
     <>
@@ -372,22 +389,28 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           </div>
 
           <ol className="funding-steps">
-            <li className={quote ? "complete" : "active"}>
-              <span>{quote ? <Check size={14} /> : "1"}</span>
+            <li className={stepStatuses[0]}>
+              <span>
+                {stepStatuses[0] === "complete" ? <Check size={14} /> : "1"}
+              </span>
               <div>
                 <strong>Prepare funds on Arc</strong>
                 <p>Estimate a Circle App Kit route or use an Arc balance.</p>
               </div>
             </li>
-            <li className={quote ? "active" : ""}>
-              <span>2</span>
+            <li className={stepStatuses[1]}>
+              <span>
+                {stepStatuses[1] === "complete" ? <Check size={14} /> : "2"}
+              </span>
               <div>
                 <strong>Fund the escrow</strong>
                 <p>One explicit transaction locks the agreement total.</p>
               </div>
             </li>
-            <li>
-              <span>3</span>
+            <li className={stepStatuses[2]}>
+              <span>
+                {stepStatuses[2] === "complete" ? <Check size={14} /> : "3"}
+              </span>
               <div>
                 <strong>Wait for confirmation</strong>
                 <p>The provider can start only after Arc confirms funding.</p>

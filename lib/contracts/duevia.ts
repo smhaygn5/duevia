@@ -104,6 +104,7 @@ function createDueviaWalletClient(account: Address) {
 async function sendAndWait(
   account: Address,
   request: Parameters<ReturnType<typeof createDueviaWalletClient>["writeContract"]>[0],
+  onSubmitted?: (hash: Hex) => void,
 ) {
   const publicClient = createDueviaPublicClient();
   const simulation = await publicClient.simulateContract({
@@ -114,6 +115,7 @@ async function sendAndWait(
   const hash = await wallet.writeContract(
     simulation.request as Parameters<typeof wallet.writeContract>[0],
   );
+  onSubmitted?.(hash);
   const receipt = await publicClient.waitForTransactionReceipt({
     hash,
     confirmations: 1,
@@ -248,13 +250,18 @@ export async function writeEscrowAction(
   account: Address,
   escrow: Address,
   action: EscrowWriteAction,
+  onSubmitted?: (hash: Hex) => void,
 ) {
-  return sendAndWait(account, {
-    address: escrow,
-    abi: dueviaEscrowAbi,
-    functionName: action.name,
-    args: action.args,
-  });
+  return sendAndWait(
+    account,
+    {
+      address: escrow,
+      abi: dueviaEscrowAbi,
+      functionName: action.name,
+      args: action.args,
+    },
+    onSubmitted,
+  );
 }
 
 export async function readFundingState(

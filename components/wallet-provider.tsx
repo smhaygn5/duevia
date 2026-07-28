@@ -291,6 +291,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const keepsSession =
           authenticated &&
           address?.toLowerCase() === connectedAddress.toLowerCase();
+        if (authenticated && !keepsSession) {
+          await fetch("/api/auth/signout", { method: "POST" }).catch(() => {});
+        }
         setSelectedEthereumProvider(detail.provider);
         setActiveProvider(detail);
         setAddress(connectedAddress);
@@ -426,12 +429,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await fetch("/api/auth/signout", { method: "POST" });
+    } catch {
+      // Local wallet state is still cleared so a fresh signature is required.
+    } finally {
       setAuthenticated(false);
       setAddress(null);
       setChainId(null);
       setActiveProvider(null);
       setSelectedEthereumProvider(null);
-    } finally {
       setBusy(false);
     }
   }, []);

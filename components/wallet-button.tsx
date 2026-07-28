@@ -4,11 +4,13 @@ import {
   AlertCircle,
   Check,
   ChevronDown,
+  LogOut,
+  RefreshCw,
   Wallet,
   X,
 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ARC } from "@/lib/arc/config";
 import { useWallet } from "./wallet-provider";
 
@@ -23,38 +25,52 @@ function walletInitial(name: string) {
 export function WalletButton() {
   const wallet = useWallet();
   const [chooserOpen, setChooserOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const controlRef = useRef<HTMLDivElement>(null);
   const wrongNetwork =
     wallet.address !== null &&
     wallet.chainId !== null &&
     wallet.chainId !== ARC.chainId;
 
   useEffect(() => {
-    if (!chooserOpen) return;
+    if (!chooserOpen && !accountOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setChooserOpen(false);
+      if (event.key === "Escape") {
+        setChooserOpen(false);
+        setAccountOpen(false);
+      }
+    };
+    const closeAccountMenu = (event: MouseEvent) => {
+      if (
+        accountOpen &&
+        controlRef.current &&
+        !controlRef.current.contains(event.target as Node)
+      ) {
+        setAccountOpen(false);
+      }
     };
     window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [chooserOpen]);
+    window.addEventListener("mousedown", closeAccountMenu);
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("mousedown", closeAccountMenu);
+    };
+  }, [accountOpen, chooserOpen]);
 
   let label = "Connect wallet";
-  let action: (() => Promise<void>) | null = null;
   if (wallet.authenticated && !wallet.activeWalletName) {
     label = "Reconnect wallet";
   } else if (wallet.address && wrongNetwork) {
     label = "Switch to Arc";
-    action = wallet.switchToArc;
   } else if (wallet.address && !wallet.authenticated) {
     label = "Sign in";
-    action = wallet.signIn;
   } else if (wallet.address && wallet.authenticated) {
     label = shortAddress(wallet.address);
   }
-  const showIdentity =
-    wallet.authenticated && Boolean(wallet.activeWalletName) && !wrongNetwork;
 
   function openChooser() {
     wallet.clearError();
+    setAccountOpen(false);
     setChooserOpen(true);
   }
 
@@ -63,30 +79,131 @@ export function WalletButton() {
     if (connected) setChooserOpen(false);
   }
 
+  async function changeWallet() {
+    setAccountOpen(false);
+    await wallet.signOut();
+    setChooserOpen(true);
+  }
+
+  async function disconnectWallet() {
+    setAccountOpen(false);
+    await wallet.signOut();
+  }
+
   return (
-    <div className="wallet-control">
-      {showIdentity ? (
-        <div
-          className="wallet-button wallet-status is-authenticated"
-          aria-label={`${wallet.activeWalletName}, ${label}, connected`}
-        >
-          <Check size={15} />
-          <span>{label}</span>
-        </div>
-      ) : (
+    <div className="wallet-control" ref={controlRef}>
+      {wallet.address ? (
         <button
-          className={`wallet-button${wallet.authenticated ? " is-authenticated" : ""}`}
+          className={`wallet-button wallet-status${
+            wallet.authenticated ? " is-authenticated" : ""
+          }`}
           type="button"
           onClick={() => {
-            if (action) void action().catch(() => {});
-            else openChooser();
+            wallet.clearError();
+            setAccountOpen((current) => !current);
           }}
           disabled={wallet.busy}
-          aria-label={label}
+          aria-haspopup="menu"
+          aria-expanded={accountOpen}
+          aria-label={`${wallet.activeWalletName ?? "EVM wallet"}, ${label}`}
         >
           {wallet.authenticated ? <Check size={15} /> : <Wallet size={15} />}
           <span>{wallet.busy ? "Waiting for wallet…" : label}</span>
+          <ChevronDown size={14} />
         </button>
+      ) : (
+        <button
+          className="wallet-button"
+          type="button"
+          onClick={openChooser}
+          disabled={wallet.busy}
+          aria-label={label}
+        >
+          <Wallet size={15} />
+          <span>{wallet.busy ? "Waiting for wallet…" : label}</span>
+        </button>
+      )}
+
+      {accountOpen && wallet.address && (
+        <div className="wallet-account-menu" role="menu">
+          <header>
+            <span className="wallet-account-icon">
+              {wallet.authenticated ? <Check size={15} /> : <Wallet size={15} />}
+            </span>
+            <div>
+              <strong>{wallet.activeWalletName ?? "Connected EVM wallet"}</strong>
+              <small>{shortAddress(wallet.address)}</small>
+            </div>
+          </header>
+
+          {wrongNetwork && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setAccountOpen(false);
+                void wallet.switchToArc().catch(() => {});
+              }}
+            >
+              <RefreshCw size={15} />
+              <span>
+                <strong>Switch to Arc Testnet</strong>
+                <small>Approve the network request in your wallet.</small>
+              </span>
+            </button>
+          )}
+
+          {!wrongNetwork && !wallet.authenticated && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setAccountOpen(false);
+                void wallet.signIn();
+              }}
+            >
+              <Check size={15} />
+              <span>
+                <strong>Sign in to Duevia</strong>
+                <small>Free signature only; no transaction or gas.</small>
+              </span>
+            </button>
+          )}
+
+          {wallet.authenticated && !wallet.activeWalletName && (
+            <button type="button" role="menuitem" onClick={openChooser}>
+              <RefreshCw size={15} />
+              <span>
+                <strong>Reconnect extension</strong>
+                <small>Use the wallet that owns this active session.</small>
+              </span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void changeWallet()}
+          >
+            <RefreshCw size={15} />
+            <span>
+              <strong>Change wallet</strong>
+              <small>The new wallet must sign a fresh Duevia message.</small>
+            </span>
+          </button>
+          <button
+            className="danger"
+            type="button"
+            role="menuitem"
+            onClick={() => void disconnectWallet()}
+          >
+            <LogOut size={15} />
+            <span>
+              <strong>Disconnect wallet</strong>
+              <small>End this session and clear the selected wallet.</small>
+            </span>
+          </button>
+        </div>
       )}
 
       {wallet.error && (
@@ -114,7 +231,10 @@ export function WalletButton() {
               <div>
                 <span>Installed EVM wallets</span>
                 <h2 id="wallet-picker-title">Choose a wallet</h2>
-                <p>Duevia will connect only to the wallet you select.</p>
+                <p>
+                  Duevia will connect only to the wallet you select. A fresh
+                  signature is required for every new wallet session.
+                </p>
               </div>
               <button
                 type="button"
