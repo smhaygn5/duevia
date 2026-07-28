@@ -20,6 +20,10 @@ import {
   type FundingSource,
   type UnifiedBalance,
 } from "@/lib/circle/browser";
+import {
+  formatArcBridgeError,
+  isArcBridgeError,
+} from "@/lib/circle/errors";
 import { demoAgreement } from "@/lib/demo-data";
 import {
   escrowConfigFromAgreement,
@@ -51,6 +55,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bridgeComplete, setBridgeComplete] = useState(false);
+  const [bridgeResumeReady, setBridgeResumeReady] = useState(false);
   const [approved, setApproved] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
@@ -165,11 +170,24 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
     }
 
     setBusy(true);
+    let fundingStage:
+      | "bridge"
+      | "recovery"
+      | "network"
+      | "deployment"
+      | "approval"
+      | "funding" = "recovery";
     try {
       if (method === "bridge" && !directArc && !bridgeComplete) {
-        setProgress("Circle is moving USDC to Arc. Confirm each wallet step.");
-        await executeArcBridge(source, amount);
+        fundingStage = "bridge";
+        setProgress(
+          bridgeResumeReady
+            ? "Resuming the existing Circle route without starting over."
+            : "Circle is moving USDC to Arc. Confirm each wallet step.",
+        );
+        await executeArcBridge(source, amount, wallet.address);
         setBridgeComplete(true);
+        setBridgeResumeReady(false);
         setProgress("USDC arrived on Arc. Continue to deploy the escrow.");
         return;
       }
@@ -180,34 +198,41 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
         return;
       }
 
-      let activeEscrow = agreementData.agreement.contract_address;
+      fundingStage = "recovery";
+      const storedEscrow = agreementData.agreement.contract_address;
+      let activeEscrow = await recoverAgreementEscrow(agreementRef);
+      if (
+        activeEscrow &&
+        activeEscrow.toLowerCase() !== storedEscrow?.toLowerCase()
+      ) {
+        setAgreementData((current) =>
+          current
+            ? {
+                ...current,
+                agreement: {
+                  ...current.agreement,
+                  contract_address: activeEscrow,
+                },
+              }
+            : current,
+        );
+        setProgress(
+          storedEscrow
+            ? "The verified Arc escrow replaced a stale local address. Continue to approve the USDC amount."
+            : "Existing escrow recovered from Arc. Continue to approve the USDC amount.",
+        );
+        return;
+      }
       if (!activeEscrow) {
         if (!factoryAddress) {
           throw new Error("Duevia's Arc testnet factory is not configured yet.");
         }
-        setProgress("Checking Arc for an existing agreement escrow.");
-        activeEscrow = await recoverAgreementEscrow(agreementRef);
-        if (activeEscrow) {
-          setAgreementData((current) =>
-            current
-              ? {
-                  ...current,
-                  agreement: {
-                    ...current.agreement,
-                    contract_address: activeEscrow,
-                  },
-                }
-              : current,
-          );
-          setProgress(
-            "Existing escrow recovered from Arc. Continue to approve the USDC amount.",
-          );
-          return;
-        }
       }
 
+      fundingStage = "network";
       await wallet.switchToArc();
       if (!activeEscrow) {
+        fundingStage = "deployment";
         setProgress("Deploying an isolated escrow for this agreement.");
         const receipt = await deployAgreementEscrow(
           wallet.address,
@@ -234,6 +259,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       }
 
       if (!approved) {
+        fundingStage = "approval";
         setProgress("Approving only this agreement's USDC amount.");
         await approveAgreementUsdc(
           wallet.address,
@@ -245,6 +271,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
         return;
       }
 
+      fundingStage = "funding";
       setProgress("Locking the agreement total in escrow.");
       const receipt = await writeEscrowAction(wallet.address, activeEscrow, {
         name: "fund",
@@ -255,10 +282,29 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       setProgress("Funding confirmed on Arc. The provider can now begin.");
     } catch (fundingError) {
       setProgress(null);
-      setError(formatContractError(
-        fundingError,
-        "The funding step could not be completed. Reload the agreement and check the connected Arc wallet.",
-      ));
+      if (fundingStage === "bridge") {
+        setBridgeResumeReady(
+          isArcBridgeError(fundingError) && fundingError.canResume,
+        );
+        setError(
+          formatArcBridgeError(
+            fundingError,
+            selected?.label ?? "the source network",
+          ),
+        );
+      } else {
+        const fallback =
+          fundingStage === "recovery"
+            ? "The agreement escrow could not be verified against Arc. Reload the agreement before continuing."
+            : fundingStage === "network"
+              ? "Switch the connected client wallet to Arc Testnet and try again."
+              : fundingStage === "deployment"
+                ? "The agreement escrow could not be deployed. Check the connected client wallet and try again."
+                : fundingStage === "approval"
+                  ? `The USDC approval did not complete. The Arc client wallet needs at least ${amount} USDC plus the network fee.`
+                  : "The escrow could not lock the funds. Confirm that the connected wallet is the agreement client and that the USDC approval succeeded.";
+        setError(formatContractError(fundingError, fallback));
+      }
     } finally {
       setBusy(false);
     }
@@ -269,7 +315,9 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
     : isDemo
       ? "Prepare demo route"
       : method === "bridge" && !directArc && !bridgeComplete
-        ? "Bridge USDC to Arc"
+        ? bridgeResumeReady
+          ? "Resume USDC bridge"
+          : "Bridge USDC to Arc"
         : !escrowAddress
           ? "Deploy agreement escrow"
           : !approved
@@ -361,6 +409,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                 setMethod("bridge");
                 setQuote(null);
                 setUnifiedBalance(null);
+                setBridgeComplete(false);
+                setBridgeResumeReady(false);
               }}
             >
               Arc / Bridge
@@ -372,6 +422,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
               onClick={() => {
                 setMethod("unified");
                 setQuote(null);
+                setBridgeComplete(false);
+                setBridgeResumeReady(false);
               }}
             >
               Unified Balance
@@ -392,6 +444,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                   onChange={(event) => {
                     setSource(event.target.value as FundingSource);
                     setQuote(null);
+                    setBridgeComplete(false);
+                    setBridgeResumeReady(false);
                   }}
                 >
                   {fundingSources.map((option) => (

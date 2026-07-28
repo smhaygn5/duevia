@@ -1,5 +1,6 @@
 import {
   getAddress,
+  isAddress,
   zeroAddress,
 } from "viem";
 import { NextRequest, NextResponse } from "next/server";
@@ -92,13 +93,6 @@ export async function POST(
         { status: 404 },
       );
     }
-    if (agreement.contract_address) {
-      return NextResponse.json({
-        contractAddress: getAddress(agreement.contract_address),
-        recovered: false,
-      });
-    }
-
     const factoryAddress = getDueviaFactoryAddress();
     if (!factoryAddress) {
       return NextResponse.json(
@@ -112,7 +106,7 @@ export async function POST(
       agreementHash: agreement.agreement_hash,
     });
     const publicClient = createDueviaPublicClient();
-    const escrow = await withArcRpcRetry(() =>
+    const registeredEscrow = await withArcRpcRetry(() =>
       publicClient.readContract({
         address: factoryAddress,
         abi: dueviaFactoryAbi,
@@ -120,7 +114,15 @@ export async function POST(
         args: [expectedAgreementRef],
       }),
     );
-    if (escrow === zeroAddress) {
+    const storedEscrow =
+      agreement.contract_address && isAddress(agreement.contract_address)
+        ? getAddress(agreement.contract_address)
+        : null;
+    const escrow =
+      registeredEscrow !== zeroAddress
+        ? getAddress(registeredEscrow)
+        : storedEscrow;
+    if (!escrow) {
       return NextResponse.json({ contractAddress: null, recovered: false });
     }
 
@@ -218,34 +220,41 @@ export async function POST(
       );
     }
 
-    const now = Date.now();
-    await db.batch([
-      db
-        .prepare(
-          `UPDATE agreements SET contract_address = ?, updated_at = ?
-           WHERE id = ? AND contract_address IS NULL`,
-        )
-        .bind(escrow, now, agreement.id),
-      db
-        .prepare(
-          `INSERT INTO activities (
-            id, agreement_id, milestone_id, actor_wallet_id, type, detail,
-            tx_hash, occurred_at, created_at, updated_at
-          ) VALUES (?, ?, NULL, ?, 'escrow.recovered', ?, NULL, ?, ?, ?)`,
-        )
-        .bind(
-          crypto.randomUUID(),
-          agreement.id,
-          session.walletId,
-          JSON.stringify({ contractAddress: escrow }),
-          now,
-          now,
-          now,
-        ),
-    ]);
+    const addressChanged =
+      !storedEscrow || !sameAddress(storedEscrow, escrow);
+    if (addressChanged) {
+      const now = Date.now();
+      await db.batch([
+        db
+          .prepare(
+            `UPDATE agreements SET contract_address = ?, updated_at = ?
+             WHERE id = ?`,
+          )
+          .bind(escrow, now, agreement.id),
+        db
+          .prepare(
+            `INSERT INTO activities (
+              id, agreement_id, milestone_id, actor_wallet_id, type, detail,
+              tx_hash, occurred_at, created_at, updated_at
+            ) VALUES (?, ?, NULL, ?, 'escrow.recovered', ?, NULL, ?, ?, ?)`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            agreement.id,
+            session.walletId,
+            JSON.stringify({
+              contractAddress: escrow,
+              replacedAddress: storedEscrow,
+            }),
+            now,
+            now,
+            now,
+          ),
+      ]);
+    }
     return NextResponse.json({
       contractAddress: getAddress(escrow),
-      recovered: true,
+      recovered: addressChanged,
     });
   } catch (error) {
     return NextResponse.json(
