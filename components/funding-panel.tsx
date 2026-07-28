@@ -32,6 +32,7 @@ import {
   formatContractError,
   getDueviaFactoryAddress,
   readFundingState,
+  recoverAgreementEscrow,
   syncAgreementTransaction,
   writeEscrowAction,
 } from "@/lib/contracts/duevia";
@@ -179,11 +180,33 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
         return;
       }
 
-      await wallet.switchToArc();
+      const onArc = await wallet.switchToArc();
+      if (!onArc) {
+        throw new Error("The Arc network switch was not completed.");
+      }
       let activeEscrow = agreementData.agreement.contract_address;
       if (!activeEscrow) {
         if (!factoryAddress) {
           throw new Error("Duevia's Arc testnet factory is not configured yet.");
+        }
+        setProgress("Checking Arc for an existing agreement escrow.");
+        activeEscrow = await recoverAgreementEscrow(agreementRef);
+        if (activeEscrow) {
+          setAgreementData((current) =>
+            current
+              ? {
+                  ...current,
+                  agreement: {
+                    ...current.agreement,
+                    contract_address: activeEscrow,
+                  },
+                }
+              : current,
+          );
+          setProgress(
+            "Existing escrow recovered from Arc. Continue to approve the USDC amount.",
+          );
+          return;
         }
         setProgress("Deploying an isolated escrow for this agreement.");
         const receipt = await deployAgreementEscrow(
@@ -231,6 +254,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       setConfirmed(true);
       setProgress("Funding confirmed on Arc. The provider can now begin.");
     } catch (fundingError) {
+      setProgress(null);
       setError(formatContractError(
         fundingError,
         "The funding step could not be completed. Reload the agreement and check the connected Arc wallet.",

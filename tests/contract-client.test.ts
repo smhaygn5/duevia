@@ -30,4 +30,8 @@ test("contract failures are converted to concise user-facing guidance", () => {
     "This agreement already has an Arc escrow. Reload the agreement before continuing.",
   );
   assert.doesNotMatch(formatContractError(raw), /createEscrow|reverted/i);
+  assert.match(
+    formatContractError(new Error("RPC error: request limit reached")),
+    /temporarily busy/i,
+  );
 });

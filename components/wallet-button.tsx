@@ -38,7 +38,7 @@ export function WalletButton() {
   }, [chooserOpen]);
 
   let label = "Connect wallet";
-  let action: (() => Promise<void>) | null = null;
+  let action: (() => Promise<unknown>) | null = null;
   if (wallet.authenticated && !wallet.activeWalletName) {
     label = "Reconnect wallet";
   } else if (wallet.address && wrongNetwork) {

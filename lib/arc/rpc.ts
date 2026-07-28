@@ -5,9 +5,9 @@ export function createArcPublicClient() {
   return createPublicClient({
     chain: arcTestnet,
     transport: fallback(
-      ARC.rpcUrls.map((url) =>
+      ARC.readRpcUrls.map((url) =>
         http(url, {
-          retryCount: 1,
+          retryCount: 2,
           timeout: 5_000,
         }),
       ),

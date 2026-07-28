@@ -37,7 +37,7 @@ type WalletContextValue = {
   activeWalletName: string | null;
   clearError: () => void;
   connect: (walletId: string) => Promise<boolean>;
-  switchToArc: () => Promise<void>;
+  switchToArc: () => Promise<boolean>;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -268,30 +268,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const provider = activeProvider?.provider;
     if (!provider) {
       setError("Choose an installed EVM wallet before switching networks.");
-      return;
+      return false;
     }
     setBusy(true);
     setError(null);
     const chainIdHex = `0x${ARC.chainId.toString(16)}`;
     try {
-      await provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: chainIdHex }],
-      });
-      setChainId(ARC.chainId);
-    } catch (switchError) {
-      const code =
-        typeof switchError === "object" &&
-        switchError !== null &&
-        "code" in switchError
-          ? switchError.code
-          : null;
-      if (code !== 4902) {
-        setError(walletError(switchError));
-        setBusy(false);
-        return;
-      }
       try {
+        await provider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: chainIdHex }],
+        });
+      } catch (switchError) {
+        const code =
+          typeof switchError === "object" &&
+          switchError !== null &&
+          "code" in switchError
+            ? switchError.code
+            : null;
+        if (code !== 4902) throw switchError;
         await provider.request({
           method: "wallet_addEthereumChain",
           params: [
@@ -308,10 +303,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             },
           ],
         });
-        setChainId(ARC.chainId);
-      } catch (addError) {
-        setError(walletError(addError));
       }
+      const activeChain = await provider.request<string>({
+        method: "eth_chainId",
+      });
+      const activeChainId = Number.parseInt(activeChain, 16);
+      if (activeChainId !== ARC.chainId) {
+        throw new Error("The Arc network switch was not completed.");
+      }
+      setChainId(activeChainId);
+      return true;
+    } catch (switchError) {
+      setError(walletError(switchError));
+      return false;
     } finally {
       setBusy(false);
     }

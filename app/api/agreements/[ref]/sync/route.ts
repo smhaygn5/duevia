@@ -14,6 +14,7 @@ import {
   agreementOnchainRef,
   milestoneOnchainRef,
 } from "@/lib/agreements/onchain-proof";
+import { withArcRpcRetry } from "@/lib/arc/rpc-retry";
 import {
   createDueviaPublicClient,
   dueviaEscrowAbi,
@@ -144,10 +145,12 @@ export async function POST(
     }
 
     const publicClient = createDueviaPublicClient();
-    const [receipt, transaction] = await Promise.all([
+    const receipt = await withArcRpcRetry(() =>
       publicClient.getTransactionReceipt({ hash: input.txHash as Hex }),
+    );
+    const transaction = await withArcRpcRetry(() =>
       publicClient.getTransaction({ hash: input.txHash as Hex }),
-    ]);
+    );
     if (receipt.status !== "success") {
       return NextResponse.json(
         { error: "transaction_reverted", message: "The Arc transaction reverted." },
@@ -219,26 +222,35 @@ export async function POST(
           review_window_seconds: number;
           revision_limit: number;
         }>();
-      const [count, gracePeriod, ...onchainMilestones] = await Promise.all([
+      const count = await withArcRpcRetry(() =>
         publicClient.readContract({
           address: args.escrow,
           abi: dueviaEscrowAbi,
           functionName: "milestoneCount",
         }),
+      );
+      const gracePeriod = await withArcRpcRetry(() =>
         publicClient.readContract({
           address: args.escrow,
           abi: dueviaEscrowAbi,
           functionName: "nonDeliveryGracePeriod",
         }),
-        ...milestones.results.map((_, index) =>
-          publicClient.readContract({
-            address: args.escrow,
-            abi: dueviaEscrowAbi,
-            functionName: "getMilestone",
-            args: [BigInt(index)],
-          }),
-        ),
-      ]);
+      );
+      const onchainMilestones: Array<
+        readonly [Hex, bigint, bigint, number, number, number, bigint, number]
+      > = [];
+      for (const [index] of milestones.results.entries()) {
+        onchainMilestones.push(
+          await withArcRpcRetry(() =>
+            publicClient.readContract({
+              address: args.escrow,
+              abi: dueviaEscrowAbi,
+              functionName: "getMilestone",
+              args: [BigInt(index)],
+            }),
+          ),
+        );
+      }
       const termsMatch =
         count === BigInt(milestones.results.length) &&
         gracePeriod === 2n * 24n * 60n * 60n &&

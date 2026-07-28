@@ -84,7 +84,9 @@ export function createDueviaPublicClient() {
   return createPublicClient({
     chain: arcTestnet,
     transport: fallback(
-      ARC.rpcUrls.map((url) => http(url, { retryCount: 1, timeout: 8_000 })),
+      ARC.readRpcUrls.map((url) =>
+        http(url, { retryCount: 2, timeout: 8_000 }),
+      ),
     ),
   });
 }
@@ -161,6 +163,16 @@ export function formatContractError(
     return "This wallet does not have enough Arc Testnet USDC for the amount and network fee.";
   }
   if (
+    detail.includes("request limit reached") ||
+    detail.includes("rate limit") ||
+    detail.includes("too many requests")
+  ) {
+    return "Arc is temporarily busy. Your transaction may already be confirmed; wait a moment and continue to recover it automatically.";
+  }
+  if (detail.includes("network switch")) {
+    return "The wallet did not finish switching to Arc Testnet. Switch networks in the wallet and try again.";
+  }
+  if (
     detail.includes("user rejected") ||
     detail.includes("user denied") ||
     detail.includes("4001")
@@ -188,6 +200,22 @@ export async function deployAgreementEscrow(
     functionName: "createEscrow",
     args: [config],
   });
+}
+
+export async function recoverAgreementEscrow(
+  publicRef: string,
+): Promise<Address | null> {
+  const response = await fetch(`/api/agreements/${publicRef}/recover`, {
+    method: "POST",
+  });
+  const payload = (await response.json()) as {
+    contractAddress?: Address | null;
+    message?: string;
+  };
+  if (!response.ok) {
+    throw new Error(payload.message ?? "The existing Arc escrow could not be recovered.");
+  }
+  return payload.contractAddress ?? null;
 }
 
 export async function approveAgreementUsdc(
