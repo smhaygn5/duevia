@@ -2095,6 +2095,24 @@ button:disabled,
   top: 28px;
 }
 
+.action-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 26px;
+}
+
+.action-panel-kicker {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.action-panel-kicker .action-icon {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
 .agreement-summary > span,
 .submission-summary > span,
 .recovery-panel > span,
@@ -2113,7 +2131,7 @@ button:disabled,
 .recovery-panel h2 {
   font-size: 19px;
   letter-spacing: -0.035em;
-  margin: 16px 0 8px;
+  margin: 20px 0 9px;
 }
 
 .agreement-summary > p,
@@ -2337,7 +2355,7 @@ button:disabled,
   align-items: start;
   display: grid;
   gap: 20px;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) 320px;
 }
 
 .agreement-detail-main {
@@ -2526,8 +2544,8 @@ button:disabled,
   border-top: 1px solid var(--line);
   display: grid;
   gap: 12px;
-  margin-top: 20px;
-  padding-top: 18px;
+  margin-top: 24px;
+  padding-top: 20px;
 }
 
 .action-facts div {
@@ -2557,6 +2575,11 @@ button:disabled,
   border-top: 1px solid var(--line);
   margin-top: 4px;
   padding-top: 13px;
+}
+
+.action-panel .action-primary {
+  margin-top: 17px;
+  min-height: 46px;
 }
 
 .funding-layout {

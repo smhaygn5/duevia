@@ -4,6 +4,7 @@ import {
   custom,
   erc20Abi,
   fallback,
+  formatUnits,
   http,
   isAddress,
   parseAbi,
@@ -125,8 +126,8 @@ async function sendAndWait(
   const receipt = await publicClient.waitForTransactionReceipt({
     hash,
     confirmations: 1,
-    pollingInterval: 1_000,
-    timeout: 90_000,
+    pollingInterval: 750,
+    timeout: 20_000,
   });
   if (receipt.status !== "success") {
     throw new Error("The Arc transaction reverted.");
@@ -169,7 +170,7 @@ export function formatContractError(
     return "Only the wallet assigned to this action can complete the transaction.";
   }
   if (detail.includes("insufficient funds")) {
-    return "This wallet does not have enough Arc Testnet USDC for the amount and network fee.";
+    return "This Arc wallet does not have enough USDC for the transaction and its network fee. Arc uses the same USDC balance for both.";
   }
   if (
     detail.includes("request limit reached") ||
@@ -233,13 +234,18 @@ export async function approveAgreementUsdc(
   account: Address,
   escrow: Address,
   amount: bigint,
+  onSubmitted?: (hash: Hex) => void,
 ) {
-  return sendAndWait(account, {
-    address: ARC_CONTRACTS.usdc,
-    abi: erc20Abi,
-    functionName: "approve",
-    args: [escrow, amount],
-  });
+  return sendAndWait(
+    account,
+    {
+      address: ARC_CONTRACTS.usdc,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [escrow, amount],
+    },
+    onSubmitted,
+  );
 }
 
 export type EscrowWriteAction =
@@ -298,9 +304,61 @@ export async function readFundingState(
   };
 }
 
+export type ArcFundingBalances = {
+  usdc: bigint;
+};
+
+export async function readArcFundingBalances(
+  account: Address,
+): Promise<ArcFundingBalances> {
+  const client = createDueviaPublicClient();
+  const usdc = await client.readContract({
+    address: ARC_CONTRACTS.usdc,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [account],
+  });
+  return { usdc };
+}
+
+export function fundingBalanceError(
+  balances: ArcFundingBalances,
+  requiredSettlementUsdc: bigint,
+) {
+  const balance = formatUnits(balances.usdc, 6);
+  const required = formatUnits(requiredSettlementUsdc, 6);
+  if (balances.usdc < requiredSettlementUsdc) {
+    return `The connected Arc wallet has ${balance} USDC, but this agreement needs ${required} USDC plus the Arc network fee. Bridge or add USDC before approving.`;
+  }
+  if (balances.usdc === requiredSettlementUsdc) {
+    return `The connected Arc wallet has exactly ${balance} USDC. Add a small USDC buffer because Arc pays the approval and funding network fees from this same balance.`;
+  }
+  return null;
+}
+
+export async function recoverFundingState(
+  account: Address,
+  escrow: Address,
+  totalAmount: bigint,
+  expected: "approved" | "funded",
+) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      const state = await readFundingState(account, escrow, totalAmount);
+      if (state[expected]) return state;
+    } catch {
+      // A different Arc RPC may become available on the next read.
+    }
+    if (attempt < 5) {
+      await new Promise((resolve) => setTimeout(resolve, 750));
+    }
+  }
+  return null;
+}
+
 export async function syncAgreementTransaction(
   publicRef: string,
-  receipt: TransactionReceipt,
+  transaction: TransactionReceipt | Hex,
   submission?: {
     id: string;
     hash: Hex;
@@ -312,7 +370,10 @@ export async function syncAgreementTransaction(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      txHash: receipt.transactionHash,
+      txHash:
+        typeof transaction === "string"
+          ? transaction
+          : transaction.transactionHash,
       submission,
       reviewNote,
     }),

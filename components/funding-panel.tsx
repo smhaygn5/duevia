@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type { Hex } from "viem";
 import {
   estimateArcBridge,
   estimateUnifiedSpend,
@@ -37,8 +38,11 @@ import {
   approveAgreementUsdc,
   deployAgreementEscrow,
   formatContractError,
+  fundingBalanceError,
   getDueviaFactoryAddress,
+  readArcFundingBalances,
   readFundingState,
+  recoverFundingState,
   recoverAgreementEscrow,
   syncAgreementTransaction,
   writeEscrowAction,
@@ -135,7 +139,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       setQuote({
         amount,
         protocolFee: "0",
-        gasSummary: "USDC",
+        gasSummary: "Wallet estimate · same USDC balance",
         source: "Arc_Testnet",
         destination: "Arc_Testnet",
       });
@@ -183,6 +187,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       | "deployment"
       | "approval"
       | "funding" = "recovery";
+    let activeEscrowForRecovery = agreementData.agreement.contract_address;
+    let submittedHash: Hex | null = null;
     try {
       if (method === "unified" && !bridgeComplete) {
         fundingStage = "bridge";
@@ -221,6 +227,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
         activeEscrow = await recoverAgreementEscrow(agreementRef);
       }
       if (activeEscrow && !storedEscrow) {
+        activeEscrowForRecovery = activeEscrow;
         setAgreementData((current) =>
           current
             ? {
@@ -255,6 +262,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           throw new Error("The new escrow address was not returned.");
         }
         activeEscrow = sync.contractAddress;
+        activeEscrowForRecovery = activeEscrow;
         setAgreementData((current) =>
           current
             ? {
@@ -272,11 +280,27 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
 
       if (!approved) {
         fundingStage = "approval";
+        const requiredAmount = BigInt(
+          agreementData.agreement.total_amount_minor,
+        );
+        const balanceIssue = fundingBalanceError(
+          await readArcFundingBalances(wallet.address),
+          requiredAmount,
+        );
+        if (balanceIssue) {
+          throw new Error(`DUEVIA_FUNDING_CHECK:${balanceIssue}`);
+        }
         setProgress("Approving only this agreement's USDC amount.");
         await approveAgreementUsdc(
           wallet.address,
           activeEscrow,
-          BigInt(agreementData.agreement.total_amount_minor),
+          requiredAmount,
+          (hash) => {
+            submittedHash = hash;
+            setProgress(
+              "USDC approval submitted to Arc. Waiting for confirmation.",
+            );
+          },
         );
         setApproved(true);
         setProgress("USDC approved. Continue once more to lock the funds.");
@@ -293,7 +317,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           name: "fund",
           args: [],
         },
-        () => {
+        (hash) => {
+          submittedHash = hash;
           setFundingSubmitted(true);
           setProgress("Funding submitted to Arc. Waiting for confirmation.");
         },
@@ -319,6 +344,44 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       } else {
         const walletMessage =
           fundingError instanceof Error ? fundingError.message : "";
+        if (walletMessage.startsWith("DUEVIA_FUNDING_CHECK:")) {
+          setError(walletMessage.slice("DUEVIA_FUNDING_CHECK:".length));
+          return;
+        }
+        if (
+          activeEscrowForRecovery &&
+          submittedHash &&
+          (fundingStage === "approval" || fundingStage === "funding")
+        ) {
+          const recovered = await recoverFundingState(
+            wallet.address,
+            activeEscrowForRecovery,
+            BigInt(agreementData.agreement.total_amount_minor),
+            fundingStage === "approval" ? "approved" : "funded",
+          );
+          if (recovered && fundingStage === "approval") {
+            setApproved(true);
+            setProgress(
+              "USDC approval is confirmed on Arc. Continue once more to lock the funds.",
+            );
+            return;
+          }
+          if (recovered?.funded) {
+            setConfirmed(true);
+            setProgress("Funding is confirmed on Arc. Updating the agreement.");
+            try {
+              await syncAgreementTransaction(agreementRef, submittedHash);
+              setProgress(
+                "Funding confirmed on Arc. The provider can now begin.",
+              );
+            } catch {
+              setError(
+                "Funding is safe and confirmed on Arc, but the agreement timeline has not updated yet. Reload the agreement in a moment.",
+              );
+            }
+            return;
+          }
+        }
         if (
           fundingStage === "network" &&
           /unlock|reconnect wallet|connect the agreement client/i.test(
@@ -336,7 +399,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
               : fundingStage === "deployment"
                 ? "The agreement escrow could not be deployed. Check the connected client wallet and try again."
                 : fundingStage === "approval"
-                  ? `The USDC approval did not complete. The Arc client wallet needs at least ${amount} USDC plus the network fee.`
+                  ? "The USDC approval was not confirmed. Keep the agreement amount plus a small Arc network-fee buffer in the connected wallet."
                   : "The escrow could not lock the funds. Confirm that the connected wallet is the agreement client and that the USDC approval succeeded.";
         setError(formatContractError(fundingError, fallback));
       }
@@ -562,7 +625,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
               </div>
             )}
             <div>
-              <span>Protocol fee</span>
+              <span>Bridge / protocol fee</span>
               <strong>{quote ? `${quote.protocolFee} USDC` : "Estimate first"}</strong>
             </div>
             <div>
@@ -572,12 +635,25 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             <div>
               <span>ETA</span>
               <strong>
-                <Clock3 size={13} /> Route dependent
+                <Clock3 size={13} />{" "}
+                {method === "bridge" && directArc
+                  ? "No bridge required"
+                  : "Route dependent"}
               </strong>
             </div>
           </div>
 
           {error && <div className="form-error" role="alert">{error}</div>}
+          {method === "bridge" && directArc && quote && (
+            <div className="gateway-disclosure">
+              <Info size={14} />
+              <span>
+                The 0 USDC value is the bridge fee, not gas. Arc still charges
+                a small network fee for approval and funding from the same
+                USDC balance.
+              </span>
+            </div>
+          )}
           {method === "unified" && (
             <div className="gateway-disclosure">
               <Info size={14} />
