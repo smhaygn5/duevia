@@ -2867,6 +2867,26 @@ button:disabled,
   overflow-wrap: anywhere;
 }
 
+.gateway-disclosure {
+  align-items: flex-start;
+  background: rgba(86, 103, 255, 0.07);
+  border: 1px solid rgba(86, 103, 255, 0.18);
+  border-radius: 10px;
+  color: #5d6580;
+  display: flex;
+  font-size: 9px;
+  gap: 8px;
+  line-height: 1.55;
+  margin-top: 12px;
+  padding: 10px 11px;
+}
+
+.gateway-disclosure svg {
+  color: #5667ff;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
 .widget-note {
   align-items: flex-start;
   color: #737991;

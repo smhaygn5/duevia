@@ -75,6 +75,10 @@ export type BridgeQuote = {
 export type UnifiedBalance = {
   total: string;
   chains: number;
+  breakdown: Array<{
+    chain: string;
+    confirmedBalance: string;
+  }>;
 };
 
 type AdapterProvider = Parameters<
@@ -89,6 +93,13 @@ type ResumableBridge = {
 };
 
 let resumableBridge: ResumableBridge | null = null;
+
+type ResumableUnifiedSpend = {
+  key: string;
+  resume: () => Promise<{ txHash: string }>;
+};
+
+let resumableUnifiedSpend: ResumableUnifiedSpend | null = null;
 
 async function createBridgeContext(
   source: FundingSource,
@@ -130,6 +141,49 @@ async function createBridgeContext(
     adapter,
     provider: selectedProvider,
     sourceChain,
+    destinationChain,
+  };
+}
+
+async function createUnifiedBalanceContext(
+  explicitProvider?: EthereumProvider,
+) {
+  const selectedProvider =
+    explicitProvider ?? getSelectedEthereumProvider();
+  if (!selectedProvider) {
+    throw new Error("Choose and connect an EVM wallet first.");
+  }
+
+  const [{ AppKit }, { createViemAdapterFromProvider }] =
+    await Promise.all([
+      import("@circle-fin/app-kit"),
+      import("@circle-fin/adapter-viem-v2"),
+    ]);
+  const kit = new AppKit();
+  const supportedChains = kit
+    .getSupportedChains("unifiedBalance")
+    .filter((chain): chain is Extract<ChainDefinition, { type: "evm" }> => {
+      return chain.type === "evm" && chain.isTestnet;
+    });
+  const destinationChain = supportedChains.find(
+    (chain) => chain.chain === "Arc_Testnet",
+  );
+  if (!destinationChain) {
+    throw new Error(
+      "Circle App Kit does not expose Arc Testnet for Unified Balance.",
+    );
+  }
+  const adapter = await createViemAdapterFromProvider({
+    provider: selectedProvider as AdapterProvider,
+    capabilities: {
+      addressContext: "user-controlled",
+      supportedChains,
+    },
+  });
+  return {
+    kit,
+    adapter,
+    provider: selectedProvider,
     destinationChain,
   };
 }
@@ -343,11 +397,137 @@ export async function getUnifiedUsdcBalance(
     networkType: "testnet",
   });
 
+  const breakdown = result.breakdown.flatMap((account) =>
+    account.breakdown
+      .filter((entry) => Number(entry.confirmedBalance) > 0)
+      .map((entry) => ({
+        chain: entry.chain,
+        confirmedBalance: entry.confirmedBalance,
+      })),
+  );
+
   return {
     total: result.totalConfirmedBalance,
-    chains: result.breakdown.reduce(
-      (sum, account) => sum + account.breakdown.length,
-      0,
-    ),
+    chains: breakdown.length,
+    breakdown,
   };
+}
+
+function sumUsdcFees(
+  fees: ReadonlyArray<{ token: string; amount: string }>,
+) {
+  return fees
+    .filter((fee) => fee.token.toUpperCase() === "USDC")
+    .reduce((sum, fee) => sum + Number(fee.amount), 0)
+    .toFixed(6)
+    .replace(/\.?0+$/, "") || "0";
+}
+
+export async function estimateUnifiedSpend(
+  amount: string,
+  provider?: EthereumProvider,
+): Promise<BridgeQuote> {
+  const { kit, adapter, destinationChain } =
+    await createUnifiedBalanceContext(provider);
+  const result = await kit.unifiedBalance.estimateSpend({
+    amount,
+    token: "USDC",
+    from: { adapter },
+    to: { adapter, chain: destinationChain },
+  });
+
+  const gasTokens = Array.from(
+    new Set(result.fees.map((fee) => fee.token.toUpperCase())),
+  );
+  return {
+    amount,
+    protocolFee: sumUsdcFees(result.fees),
+    gasSummary: gasTokens.length ? gasTokens.join(" + ") : "Wallet estimate",
+    source: "Unified Balance",
+    destination: "Arc_Testnet",
+  };
+}
+
+function unifiedSpendKey(amount: string, account: Address) {
+  return `${amount}:${account.toLowerCase()}`;
+}
+
+async function assertActiveAccount(
+  provider: EthereumProvider,
+  expectedAccount: Address,
+) {
+  const accounts = await provider.request<string[]>({ method: "eth_accounts" });
+  const activeAccount = accounts[0];
+  if (
+    !activeAccount ||
+    getAddress(activeAccount) !== getAddress(expectedAccount)
+  ) {
+    throw new ArcBridgeError(
+      "The active wallet account changed. Reconnect the agreement client wallet before using Unified Balance.",
+    );
+  }
+}
+
+export async function executeUnifiedSpend(
+  amount: string,
+  account: Address,
+  provider?: EthereumProvider,
+) {
+  const key = unifiedSpendKey(amount, account);
+  if (resumableUnifiedSpend?.key === key) {
+    const result = await resumableUnifiedSpend.resume();
+    resumableUnifiedSpend = null;
+    return result;
+  }
+
+  const context = await createUnifiedBalanceContext(provider);
+  await assertActiveAccount(context.provider, account);
+
+  try {
+    const result = await context.kit.unifiedBalance.spend({
+      amount,
+      token: "USDC",
+      from: { adapter: context.adapter },
+      to: {
+        adapter: context.adapter,
+        chain: context.destinationChain,
+      },
+    });
+    resumableUnifiedSpend = null;
+    return result;
+  } catch (error) {
+    const { isKitError } = await import("@circle-fin/app-kit");
+    if (isKitError(error) && error.recoverability === "RESUMABLE") {
+      const trace =
+        typeof error.cause?.trace === "object" && error.cause.trace !== null
+          ? (error.cause.trace as Record<string, unknown>)
+          : null;
+      const attestation =
+        typeof trace?.attestation === "string" ? trace.attestation : null;
+      const signature =
+        typeof trace?.signature === "string" ? trace.signature : null;
+      if (attestation && signature) {
+        resumableUnifiedSpend = {
+          key,
+          resume: () =>
+            context.kit.unifiedBalance.spend({
+              amount,
+              token: "USDC",
+              to: {
+                adapter: context.adapter,
+                chain: context.destinationChain,
+              },
+              config: {
+                retry: { attestation, signature },
+              },
+            }),
+        };
+        throw new ArcBridgeError(
+          "The Gateway transfer was committed, but the Arc mint needs to be resumed. Use Resume Unified Balance; do not start a second transfer.",
+          true,
+        );
+      }
+    }
+    throw error;
+  }
 }

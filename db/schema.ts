@@ -272,3 +272,16 @@ export const idempotencyKeys = sqliteTable(
   },
   (table) => [index("idempotency_expiry_idx").on(table.expiresAt)],
 );
+
+export const apiRateLimits = sqliteTable(
+  "api_rate_limits",
+  {
+    key: text("key").primaryKey(),
+    windowStartedAt: integer("window_started_at").notNull(),
+    requestCount: integer("request_count").notNull().default(1),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("api_rate_limit_window_idx").on(table.windowStartedAt),
+  ],
+);

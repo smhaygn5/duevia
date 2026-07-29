@@ -51,11 +51,12 @@ export function ensureRuntimeSchema() {
              'milestones',
              'submissions',
              'deliverables',
-             'activities'
+             'activities',
+             'api_rate_limits'
            )`,
       )
       .first<{ table_count: number }>();
-    if (Number(existing?.table_count ?? 0) === 8) {
+    if (Number(existing?.table_count ?? 0) === 9) {
       return;
     }
 
@@ -190,6 +191,14 @@ export function ensureRuntimeSchema() {
         ON activities (agreement_id, occurred_at)`,
       `CREATE UNIQUE INDEX IF NOT EXISTS activity_tx_hash_unique
         ON activities (tx_hash)`,
+      `CREATE TABLE IF NOT EXISTS api_rate_limits (
+        key TEXT PRIMARY KEY NOT NULL,
+        window_started_at INTEGER NOT NULL,
+        request_count INTEGER DEFAULT 1 NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS api_rate_limit_window_idx
+        ON api_rate_limits (window_started_at)`,
       `UPDATE agreements
         SET version = 2
         WHERE version = 1

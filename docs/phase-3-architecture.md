@@ -38,8 +38,8 @@ olayları bulunur.
 
 - Ağ: Arc Testnet
 - Chain ID: `5042002`
-- Birincil RPC: `https://rpc.testnet.arc.io`
-- Yedek RPC: `https://rpc.testnet.arc.network`
+- Birincil RPC: `https://rpc.testnet.arc.network`
+- Yedek RPC: `https://arc-testnet.drpc.org`
 - Explorer: `https://testnet.arcscan.app`
 - USDC ERC-20: `0x3600000000000000000000000000000000000000`
 - CCTP domain: `26`

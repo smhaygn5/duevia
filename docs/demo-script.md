@@ -20,9 +20,11 @@ wallet; it does not sign a transaction or move funds.
 
 ## 4. Fund globally
 
-Open the funding route. Show direct Arc, Circle Bridge, and Unified Balance
-discovery. Explain the three explicit client confirmations: deploy the isolated
-escrow, approve the exact USDC amount, and fund.
+Open the funding route. Show direct Arc, Circle Bridge, and Circle Gateway
+Unified Balance. Explain that regular wallet USDC and previously deposited
+Gateway USDC are distinct sources. Then show the three explicit client
+confirmations: deploy the isolated escrow, approve the exact USDC amount, and
+fund.
 
 ## 5. Submit protected work
 

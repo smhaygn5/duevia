@@ -36,7 +36,7 @@ coherent workflow.
 ## Product boundaries
 
 - The demo is clearly disclosed and never broadcasts value.
-- Unified Balance is exposed for balance discovery; executable funding uses a
-  direct Arc balance or the Circle Bridge path.
+- Unified Balance can query and spend USDC already deposited in Circle
+  Gateway; regular wallet USDC uses direct Arc or the Circle Bridge path.
 - Email delivery and legal enforceability are outside the testnet release.
 - Contracts are unaudited and must not be used with production funds.

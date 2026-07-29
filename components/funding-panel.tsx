@@ -13,7 +13,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   estimateArcBridge,
+  estimateUnifiedSpend,
   executeArcBridge,
+  executeUnifiedSpend,
   fundingSources,
   getUnifiedUsdcBalance,
   type BridgeQuote,
@@ -109,14 +111,15 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
     if (method === "unified") {
       setBusy(true);
       try {
-        setUnifiedBalance(await getUnifiedUsdcBalance(wallet.address));
-        setQuote({
-          amount,
-          protocolFee: "Calculated at spend",
-          gasSummary: "USDC",
-          source: "Unified Balance",
-          destination: "Arc_Testnet",
-        });
+        const balance = await getUnifiedUsdcBalance(wallet.address);
+        setUnifiedBalance(balance);
+        if (Number(balance.total) < Number(amount)) {
+          throw new Error(
+            `Circle Gateway has ${balance.total} USDC available, but this agreement needs ${amount} USDC. Use Arc / Bridge for regular wallet USDC, or deposit more USDC into Gateway first.`,
+          );
+        }
+        const provider = await wallet.ensureProvider();
+        setQuote(await estimateUnifiedSpend(amount, provider));
       } catch (balanceError) {
         setError(
           balanceError instanceof Error
@@ -181,6 +184,22 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       | "approval"
       | "funding" = "recovery";
     try {
+      if (method === "unified" && !bridgeComplete) {
+        fundingStage = "bridge";
+        setProgress(
+          bridgeResumeReady
+            ? "Resuming the committed Gateway transfer without spending twice."
+            : "Circle Gateway is minting unified USDC on Arc. Confirm each wallet step.",
+        );
+        const provider = await wallet.ensureProvider();
+        await executeUnifiedSpend(amount, wallet.address, provider);
+        setBridgeComplete(true);
+        setBridgeResumeReady(false);
+        setProgress(
+          "Unified USDC arrived on Arc. Continue to deploy or fund the escrow.",
+        );
+        return;
+      }
       if (method === "bridge" && !directArc && !bridgeComplete) {
         fundingStage = "bridge";
         setProgress(
@@ -195,13 +214,6 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
         setProgress("USDC arrived on Arc. Continue to deploy the escrow.");
         return;
       }
-      if (method === "unified" && !directArc) {
-        setError(
-          "Unified Balance is shown for discovery. Choose Bridge or Arc Testnet to execute funding.",
-        );
-        return;
-      }
-
       const storedEscrow = agreementData.agreement.contract_address;
       let activeEscrow = storedEscrow;
       if (!activeEscrow) {
@@ -299,7 +311,9 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
         setError(
           formatArcBridgeError(
             fundingError,
-            selected?.label ?? "the source network",
+            method === "unified"
+              ? "Circle Gateway"
+              : selected?.label ?? "the source network",
           ),
         );
       } else {
@@ -335,7 +349,11 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
     ? "Funding confirmed"
     : isDemo
       ? "Prepare demo route"
-      : method === "bridge" && !directArc && !bridgeComplete
+      : method === "unified" && !bridgeComplete
+        ? bridgeResumeReady
+          ? "Resume Unified Balance"
+          : "Move unified USDC to Arc"
+        : method === "bridge" && !directArc && !bridgeComplete
         ? bridgeResumeReady
           ? "Resume USDC bridge"
           : "Bridge USDC to Arc"
@@ -345,7 +363,12 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             ? "Approve agreement amount"
             : "Fund escrow";
   const stepStatuses = fundingStepStatuses({
-    prepared: Boolean(quote) || bridgeComplete || approved,
+    prepared:
+      confirmed ||
+      approved ||
+      Boolean(escrowAddress) ||
+      bridgeComplete ||
+      (method === "bridge" && directArc && Boolean(quote)),
     transactionSubmitted: fundingSubmitted,
     confirmed,
   });
@@ -391,7 +414,10 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
               </span>
               <div>
                 <strong>Prepare funds on Arc</strong>
-                <p>Estimate a Circle App Kit route or use an Arc balance.</p>
+                <p>
+                  Use Arc wallet USDC, bridge wallet USDC, or spend an existing
+                  Circle Gateway balance.
+                </p>
               </div>
             </li>
             <li className={stepStatuses[1]}>
@@ -454,11 +480,12 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
               onClick={() => {
                 setMethod("unified");
                 setQuote(null);
+                setUnifiedBalance(null);
                 setBridgeComplete(false);
                 setBridgeResumeReady(false);
               }}
             >
-              Unified Balance
+              Gateway balance
             </button>
           </div>
 
@@ -488,7 +515,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                 </select>
               </label>
             ) : (
-              <span className="unified-chip">Gateway</span>
+              <span className="unified-chip">Circle Gateway</span>
             )}
           </div>
 
@@ -500,9 +527,17 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
 
           <div className="funding-amount-box receive">
             <div>
-              <span>Escrow receives</span>
+              <span>
+                {method === "bridge" && directArc
+                  ? "Escrow will lock"
+                  : "Arrives on Arc"}
+              </span>
               <strong>{receiveAmount}</strong>
-              <small>USDC on Arc Testnet</small>
+              <small>
+                {method === "bridge" && directArc
+                  ? "USDC from the connected Arc wallet"
+                  : "USDC available for the escrow"}
+              </small>
             </div>
             <div className="arc-token">A</div>
           </div>
@@ -512,7 +547,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
               <span>Route</span>
               <strong>
                 {method === "unified"
-                  ? "Unified Balance → Arc Testnet"
+                  ? "Circle Gateway → Arc Testnet"
                   : `${selected?.label} → Arc Testnet`}
               </strong>
             </div>
@@ -521,7 +556,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                 <span>Available balance</span>
                 <strong>
                   {unifiedBalance
-                    ? `${unifiedBalance.total} USDC · ${unifiedBalance.chains} chains`
+                    ? `${unifiedBalance.total} USDC · ${unifiedBalance.chains} funded chain${unifiedBalance.chains === 1 ? "" : "s"}`
                     : "Check first"}
                 </strong>
               </div>
@@ -543,6 +578,15 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           </div>
 
           {error && <div className="form-error" role="alert">{error}</div>}
+          {method === "unified" && (
+            <div className="gateway-disclosure">
+              <Info size={14} />
+              <span>
+                This route spends USDC already deposited in Circle Gateway.
+                Regular wallet USDC should use Arc / Bridge.
+              </span>
+            </div>
+          )}
           {!quote ? (
             <button
               className="button button-primary funding-button"
@@ -550,7 +594,11 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
               onClick={() => void estimate()}
               disabled={busy}
             >
-              {busy ? "Estimating with App Kit…" : "Estimate funding route"}
+              {busy
+                ? "Checking with Circle App Kit…"
+                : method === "unified"
+                  ? "Check Gateway route"
+                  : "Estimate funding route"}
               {!busy && <ArrowRight size={16} />}
             </button>
           ) : (

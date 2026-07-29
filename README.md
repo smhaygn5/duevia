@@ -18,13 +18,16 @@ USDC stage by stage.
   `0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
 - exact client-only funding, provider-only delivery, and client-only approval
 - Circle App Kit Bridge execution from supported testnets to Arc
-- Circle Unified Balance discovery alongside direct Arc funding
+- Circle Gateway Unified Balance estimation and execution alongside direct Arc
+  and Bridge funding
 - private D1 agreement records and protected R2 deliverables
 - SHA-256 file proofs and keccak256 onchain submission proofs
 - mutual cancellation, pre-work cancellation, deadline refund, and provider
   timeout release paths
 - Arc transaction synchronization, human-readable activity, and verifiable
   receipts
+- durable wallet-auth request limits and browser security headers
+- pull-request checks for both the application and Solidity contracts
 - a complete no-value demo at `DV-7K2P`
 
 ## Demo and verified data
@@ -69,15 +72,18 @@ Open `http://localhost:3000`.
 ```bash
 npm run typecheck
 npm run lint
-npm test
+npm run test:unit
 npm run flow:check
+npm run appkit:check
+npm run build:vercel
+npm run build
+npm run test:rendered
 npm run arc:check
 npm run factory:check
-npm run appkit:check
 npm run test:contracts
 ```
 
-The current release passes 12 unit tests, 4 rendered-page tests, and 9 Solidity
+The current release passes 37 unit tests, 4 rendered-page tests, and 9 Solidity
 tests.
 
 ## Arc Testnet contract deployment
@@ -104,3 +110,6 @@ recorded in `contracts/deployments/arc-testnet.json` and can be inspected on
 - `docs/demo-script.md`
 - `docs/builder-submission.md`
 - `docs/vercel-deployment.md`
+- `docs/operations-runbook.md`
+- `docs/two-wallet-checklist.md`
+- `SECURITY.md`

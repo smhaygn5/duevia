@@ -8,6 +8,7 @@ import {
   SESSION_DURATION_MS,
   sha256,
 } from "@/lib/auth/server";
+import { consumeRequestLimit } from "@/lib/security/rate-limit";
 import { verifyWalletSignature } from "@/lib/auth/verify-wallet-signature";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 
@@ -19,6 +20,27 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const requestLimit = await consumeRequestLimit(request, {
+      scope: "auth-verify",
+      limit: 16,
+      windowMs: 60_000,
+    });
+    if (!requestLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "rate_limited",
+          message: "Too many signature checks. Wait a moment and try again.",
+        },
+        {
+          status: 429,
+          headers: {
+            "Cache-Control": "no-store",
+            "Retry-After": String(requestLimit.retryAfterSeconds),
+          },
+        },
+      );
+    }
+
     const input = requestSchema.parse(await request.json());
     await ensureRuntimeSchema();
     const db = getRawDb();
