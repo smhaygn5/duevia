@@ -58,7 +58,7 @@ authenticated API traffic to Duevia's private D1/R2 backend.
 
 ## Local development
 
-Requirements: Node.js 22.13 or newer and npm.
+Requirements: Node.js 24.16.x and npm 11.
 
 ```bash
 npm install
