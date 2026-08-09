@@ -2732,6 +2732,26 @@ button:disabled,
   line-height: 1.4;
 }
 
+.testnet-disclosure {
+  align-items: flex-start;
+  background: rgba(251, 184, 52, 0.1);
+  border: 1px solid rgba(184, 121, 0, 0.24);
+  border-radius: 10px;
+  color: #6c520d;
+  display: flex;
+  font-size: 10px;
+  gap: 8px;
+  line-height: 1.5;
+  margin-top: 14px;
+  padding: 10px 11px;
+}
+
+.testnet-disclosure svg {
+  color: #ad7100;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
 .network-chip,
 .unified-chip {
   align-items: center;

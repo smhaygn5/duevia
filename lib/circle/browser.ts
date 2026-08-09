@@ -66,10 +66,15 @@ export type FundingSource = (typeof fundingSources)[number]["value"];
 
 export type BridgeQuote = {
   amount: string;
-  protocolFee: string;
-  gasSummary: string;
+  fees: FundingFeeLine[];
   source: string;
   destination: string;
+};
+
+export type FundingFeeLine = {
+  label: string;
+  amount: string;
+  detail?: string;
 };
 
 export type UnifiedBalance = {
@@ -100,6 +105,75 @@ type ResumableUnifiedSpend = {
 };
 
 let resumableUnifiedSpend: ResumableUnifiedSpend | null = null;
+
+type StoredUnifiedRecovery = {
+  key: string;
+  account: string;
+  amount: string;
+  attestation: string;
+  signature: string;
+  createdAt: number;
+};
+
+const unifiedRecoveryKey = "duevia:unified-spend-recovery:v1";
+
+function readUnifiedRecovery(key: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(unifiedRecoveryKey);
+    if (!raw) return null;
+    const recovery = JSON.parse(raw) as StoredUnifiedRecovery;
+    if (
+      recovery.key !== key ||
+      !recovery.attestation ||
+      !recovery.signature ||
+      Date.now() - recovery.createdAt > 6 * 60 * 60 * 1000
+    ) {
+      return null;
+    }
+    return recovery;
+  } catch {
+    return null;
+  }
+}
+
+function storeUnifiedRecovery(recovery: StoredUnifiedRecovery) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(unifiedRecoveryKey, JSON.stringify(recovery));
+  } catch {
+    // The in-memory retry still works if browser storage is unavailable.
+  }
+}
+
+function clearUnifiedRecovery() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(unifiedRecoveryKey);
+  } catch {
+    // Nothing to clear when browser storage is unavailable.
+  }
+}
+
+function feeLabel(type: string) {
+  switch (type) {
+    case "provider":
+      return "Circle provider fee";
+    case "forwarder":
+      return "Arc forwarding fee";
+    case "kit":
+      return "App Kit fee";
+    case "gasFee":
+      return "Gateway gas fee";
+    default:
+      return "Route fee";
+  }
+}
+
+function formatFeeAmount(value: string | null | undefined, token: string) {
+  if (!value) return "Estimate unavailable";
+  return `${value} ${token}`;
+}
 
 async function createBridgeContext(
   source: FundingSource,
@@ -322,22 +396,24 @@ export async function estimateArcBridge(
     config: { batchTransactions: false },
   });
 
-  const protocolFee = result.fees
-    .reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0)
-    .toFixed(6)
-    .replace(/\.?0+$/, "");
-  const gasTokens = Array.from(
-    new Set(
-      result.gasFees
-        .filter((fee) => !fee.error)
-        .map((fee) => fee.token),
-    ),
-  );
+  const fees: FundingFeeLine[] = [
+    ...result.fees.map((fee) => ({
+      label: feeLabel(fee.type),
+      amount: formatFeeAmount(fee.amount, fee.token),
+    })),
+    ...result.gasFees.map((fee) => ({
+      label: `${fee.name} gas`,
+      amount:
+        fee.fees && !fee.error
+          ? `${formatUnits(BigInt(fee.fees.fee), 18)} ${fee.token}`
+          : "Wallet estimate required",
+      detail: String(fee.blockchain),
+    })),
+  ];
 
   return {
     amount: result.amount,
-    protocolFee: protocolFee || "0",
-    gasSummary: gasTokens.length ? gasTokens.join(" + ") : "Wallet estimate",
+    fees,
     source: result.source.chain,
     destination: result.destination.chain,
   };
@@ -413,16 +489,6 @@ export async function getUnifiedUsdcBalance(
   };
 }
 
-function sumUsdcFees(
-  fees: ReadonlyArray<{ token: string; amount: string }>,
-) {
-  return fees
-    .filter((fee) => fee.token.toUpperCase() === "USDC")
-    .reduce((sum, fee) => sum + Number(fee.amount), 0)
-    .toFixed(6)
-    .replace(/\.?0+$/, "") || "0";
-}
-
 export async function estimateUnifiedSpend(
   amount: string,
   provider?: EthereumProvider,
@@ -436,13 +502,12 @@ export async function estimateUnifiedSpend(
     to: { adapter, chain: destinationChain },
   });
 
-  const gasTokens = Array.from(
-    new Set(result.fees.map((fee) => fee.token.toUpperCase())),
-  );
   return {
     amount,
-    protocolFee: sumUsdcFees(result.fees),
-    gasSummary: gasTokens.length ? gasTokens.join(" + ") : "Wallet estimate",
+    fees: result.fees.map((fee) => ({
+      label: feeLabel(fee.type),
+      amount: formatFeeAmount(fee.amount, fee.token),
+    })),
     source: "Unified Balance",
     destination: "Arc_Testnet",
   };
@@ -477,11 +542,39 @@ export async function executeUnifiedSpend(
   if (resumableUnifiedSpend?.key === key) {
     const result = await resumableUnifiedSpend.resume();
     resumableUnifiedSpend = null;
+    clearUnifiedRecovery();
     return result;
   }
 
   const context = await createUnifiedBalanceContext(provider);
   await assertActiveAccount(context.provider, account);
+
+  const storedRecovery = readUnifiedRecovery(key);
+  if (storedRecovery) {
+    try {
+      const result = await context.kit.unifiedBalance.spend({
+        amount,
+        token: "USDC",
+        to: {
+          adapter: context.adapter,
+          chain: context.destinationChain,
+        },
+        config: {
+          retry: {
+            attestation: storedRecovery.attestation,
+            signature: storedRecovery.signature,
+          },
+        },
+      });
+      clearUnifiedRecovery();
+      return result;
+    } catch (error) {
+      throw new ArcBridgeError(
+        formatArcBridgeError(error, "Circle Gateway"),
+        true,
+      );
+    }
+  }
 
   try {
     const result = await context.kit.unifiedBalance.spend({
@@ -494,6 +587,7 @@ export async function executeUnifiedSpend(
       },
     });
     resumableUnifiedSpend = null;
+    clearUnifiedRecovery();
     return result;
   } catch (error) {
     const { isKitError } = await import("@circle-fin/app-kit");
@@ -507,6 +601,14 @@ export async function executeUnifiedSpend(
       const signature =
         typeof trace?.signature === "string" ? trace.signature : null;
       if (attestation && signature) {
+        storeUnifiedRecovery({
+          key,
+          account,
+          amount,
+          attestation,
+          signature,
+          createdAt: Date.now(),
+        });
         resumableUnifiedSpend = {
           key,
           resume: () =>

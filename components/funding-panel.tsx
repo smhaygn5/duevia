@@ -75,8 +75,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
   const selected = fundingSources.find((option) => option.value === source);
 
   const receiveAmount = useMemo(() => {
-    const fee = Number(quote?.protocolFee ?? 0);
-    return Math.max(Number(amount) - fee, 0).toLocaleString(undefined, {
+    const exactAmount = quote?.amount ?? amount;
+    return Number(exactAmount).toLocaleString(undefined, {
       maximumFractionDigits: 6,
     });
   }, [amount, quote]);
@@ -138,8 +138,13 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
     if (directArc) {
       setQuote({
         amount,
-        protocolFee: "0",
-        gasSummary: "Wallet estimate · same USDC balance",
+        fees: [
+          {
+            label: "Arc network fee",
+            amount: "Shown in wallet",
+            detail: "Paid from the same Arc USDC balance",
+          },
+        ],
         source: "Arc_Testnet",
         destination: "Arc_Testnet",
       });
@@ -521,6 +526,14 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             </span>
           </header>
 
+          <div className="testnet-disclosure" role="note">
+            <Info size={14} />
+            <span>
+              Testnet only. Use testnet USDC and never send production funds to
+              this agreement or its escrow address.
+            </span>
+          </div>
+
           <div className="funding-method-tabs" role="group" aria-label="Funding method">
             <button
               type="button"
@@ -624,14 +637,17 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                 </strong>
               </div>
             )}
-            <div>
-              <span>Bridge / protocol fee</span>
-              <strong>{quote ? `${quote.protocolFee} USDC` : "Estimate first"}</strong>
-            </div>
-            <div>
-              <span>Gas</span>
-              <strong>{quote?.gasSummary ?? "Paid on source"}</strong>
-            </div>
+            {quote?.fees.map((fee) => (
+              <div key={`${fee.label}-${fee.detail ?? ""}`}>
+                <span>{fee.detail ? `${fee.label} · ${fee.detail}` : fee.label}</span>
+                <strong>{fee.amount}</strong>
+              </div>
+            )) ?? (
+              <div>
+                <span>Route fees</span>
+                <strong>Estimate first</strong>
+              </div>
+            )}
             <div>
               <span>ETA</span>
               <strong>
@@ -648,9 +664,18 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             <div className="gateway-disclosure">
               <Info size={14} />
               <span>
-                The 0 USDC value is the bridge fee, not gas. Arc still charges
-                a small network fee for approval and funding from the same
-                USDC balance.
+                Arc has no bridge fee here. The wallet shows the small Arc
+                network fee for approval and funding, paid from the same USDC
+                balance.
+              </span>
+            </div>
+          )}
+          {quote && (
+            <div className="gateway-disclosure">
+              <Info size={14} />
+              <span>
+                The escrow always locks the exact agreement amount. Route and
+                network fees are separate from the USDC shown above.
               </span>
             </div>
           )}

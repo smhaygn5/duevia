@@ -36,6 +36,12 @@ Alert on repeated HTTP 5xx responses, Arc chain-ID mismatches, backend bridge
 Never log signatures, session cookies, invitation tokens, protected file
 contents, or bearer tokens.
 
+The `Production health` GitHub workflow checks the public health endpoint every
+30 minutes and can also be run manually. It verifies both the application
+response and the expected Arc Testnet chain ID. This is an availability signal,
+not a replacement for independent uptime monitoring: configure a separate
+uptime check against the same endpoint before a public demo.
+
 ## Data protection
 
 - D1 is the authoritative application record.
@@ -46,6 +52,19 @@ contents, or bearer tokens.
 - Keep scheduled D1 exports and R2 retention in a separately protected
   environment.
 - Verify a restore in a non-production environment before relying on a backup.
+
+### Backup execution checklist
+
+Before a public demo, assign one owner for each item below and record the most
+recent successful restore test:
+
+1. Schedule a D1 export before every schema or deployment change and retain
+   the export outside the serving account.
+2. Enable a private R2 retention policy appropriate for protected deliverables.
+3. Test a D1 import and a protected-file metadata restore in a non-production
+   environment at least once per release cycle.
+4. Keep the backup location and recovery access separate from normal deploy
+   credentials. Do not put recovery credentials in Vercel or GitHub variables.
 
 ## Request protection
 
