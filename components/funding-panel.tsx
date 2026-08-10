@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Check,
   Clock3,
+  ExternalLink,
   Info,
   LockKeyhole,
 } from "lucide-react";
@@ -28,12 +29,13 @@ import {
   isArcBridgeError,
 } from "@/lib/circle/errors";
 import { demoAgreement } from "@/lib/demo-data";
+import { ARC } from "@/lib/arc/config";
 import {
   escrowConfigFromAgreement,
   loadAgreement,
   type AgreementPayload,
 } from "@/lib/agreements/client";
-import { fundingStepStatuses } from "@/lib/agreements/funding-progress";
+import { fundingTimelineSteps } from "@/lib/agreements/funding-progress";
 import {
   approveAgreementUsdc,
   deployAgreementEscrow,
@@ -66,6 +68,11 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
   const [approved, setApproved] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [fundingSubmitted, setFundingSubmitted] = useState(false);
+  const [routeInFlight, setRouteInFlight] = useState(false);
+  const [escrowInFlight, setEscrowInFlight] = useState(false);
+  const [timelineTransactions, setTimelineTransactions] = useState<
+    Partial<Record<"route" | "arrival" | "escrow", { hash: Hex; href: string; label: string }>>
+  >({});
   const [progress, setProgress] = useState<string | null>(null);
   const agreement = agreementData?.agreement;
   const amount = agreement?.total_amount ?? demoAgreement.total.replace(",", "");
@@ -185,6 +192,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
     }
 
     setBusy(true);
+    setEscrowInFlight(false);
     let fundingStage:
       | "bridge"
       | "recovery"
@@ -197,13 +205,24 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
     try {
       if (method === "unified" && !bridgeComplete) {
         fundingStage = "bridge";
+        setRouteInFlight(true);
         setProgress(
           bridgeResumeReady
             ? "Resuming the committed Gateway transfer without spending twice."
             : "Circle Gateway is minting unified USDC on Arc. Confirm each wallet step.",
         );
         const provider = await wallet.ensureProvider();
-        await executeUnifiedSpend(amount, wallet.address, provider);
+        const result = await executeUnifiedSpend(amount, wallet.address, provider);
+        if (result.txHash?.startsWith("0x")) {
+          setTimelineTransactions((current) => ({
+            ...current,
+            arrival: {
+              hash: result.txHash as Hex,
+              href: `${ARC.explorerUrl}/tx/${result.txHash}`,
+              label: "View Arc mint",
+            },
+          }));
+        }
         setBridgeComplete(true);
         setBridgeResumeReady(false);
         setProgress(
@@ -213,13 +232,37 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       }
       if (method === "bridge" && !directArc && !bridgeComplete) {
         fundingStage = "bridge";
+        setRouteInFlight(true);
         setProgress(
           bridgeResumeReady
             ? "Resuming the existing Circle route without starting over."
             : "Circle is moving USDC to Arc. Confirm each wallet step.",
         );
         const provider = await wallet.ensureProvider();
-        await executeArcBridge(source, amount, wallet.address, provider);
+        const result = await executeArcBridge(source, amount, wallet.address, provider);
+        if (result.sourceTxHash?.startsWith("0x")) {
+          const sourceExplorer = selected?.walletChain.blockExplorers?.default.url;
+          if (sourceExplorer) {
+            setTimelineTransactions((current) => ({
+              ...current,
+              route: {
+                hash: result.sourceTxHash as Hex,
+                href: `${sourceExplorer}/tx/${result.sourceTxHash}`,
+                label: "View source transaction",
+              },
+            }));
+          }
+        }
+        if (result.destinationTxHash?.startsWith("0x")) {
+          setTimelineTransactions((current) => ({
+            ...current,
+            arrival: {
+              hash: result.destinationTxHash as Hex,
+              href: `${ARC.explorerUrl}/tx/${result.destinationTxHash}`,
+              label: "View Arc mint",
+            },
+          }));
+        }
         setBridgeComplete(true);
         setBridgeResumeReady(false);
         setProgress("USDC arrived on Arc. Continue to deploy the escrow.");
@@ -257,11 +300,20 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       await wallet.switchToArc();
       if (!activeEscrow) {
         fundingStage = "deployment";
+        setEscrowInFlight(true);
         setProgress("Deploying an isolated escrow for this agreement.");
         const receipt = await deployAgreementEscrow(
           wallet.address,
           escrowConfigFromAgreement(agreementData),
         );
+        setTimelineTransactions((current) => ({
+          ...current,
+          escrow: {
+            hash: receipt.transactionHash,
+            href: `${ARC.explorerUrl}/tx/${receipt.transactionHash}`,
+            label: "View escrow deployment",
+          },
+        }));
         const sync = await syncAgreementTransaction(agreementRef, receipt);
         if (!sync.contractAddress) {
           throw new Error("The new escrow address was not returned.");
@@ -285,6 +337,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
 
       if (!approved) {
         fundingStage = "approval";
+        setEscrowInFlight(true);
         const requiredAmount = BigInt(
           agreementData.agreement.total_amount_minor,
         );
@@ -302,6 +355,14 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           requiredAmount,
           (hash) => {
             submittedHash = hash;
+            setTimelineTransactions((current) => ({
+              ...current,
+              escrow: {
+                hash,
+                href: `${ARC.explorerUrl}/tx/${hash}`,
+                label: "View USDC approval",
+              },
+            }));
             setProgress(
               "USDC approval submitted to Arc. Waiting for confirmation.",
             );
@@ -313,6 +374,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       }
 
       fundingStage = "funding";
+      setEscrowInFlight(true);
       setFundingSubmitted(false);
       setProgress("Locking the agreement total in escrow.");
       const receipt = await writeEscrowAction(
@@ -322,8 +384,16 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           name: "fund",
           args: [],
         },
-        (hash) => {
-          submittedHash = hash;
+          (hash) => {
+            submittedHash = hash;
+            setTimelineTransactions((current) => ({
+              ...current,
+              escrow: {
+                hash,
+                href: `${ARC.explorerUrl}/tx/${hash}`,
+                label: "View funding transaction",
+              },
+            }));
           setFundingSubmitted(true);
           setProgress("Funding submitted to Arc. Waiting for confirmation.");
         },
@@ -410,6 +480,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       }
     } finally {
       setBusy(false);
+      setRouteInFlight(false);
+      setEscrowInFlight(false);
     }
   }
 
@@ -430,15 +502,14 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           : !approved
             ? "Approve agreement amount"
             : "Fund escrow";
-  const stepStatuses = fundingStepStatuses({
-    prepared:
-      confirmed ||
-      approved ||
-      Boolean(escrowAddress) ||
-      bridgeComplete ||
-      (method === "bridge" && directArc && Boolean(quote)),
-    transactionSubmitted: fundingSubmitted,
-    confirmed,
+  const timelineSteps = fundingTimelineSteps({
+    walletConfirmed: Boolean(wallet.authenticated && wallet.address),
+    route: method === "unified" ? "gateway" : directArc ? "direct" : "bridge",
+    routePrepared: Boolean(quote),
+    routeInFlight,
+    routeComplete: bridgeComplete || confirmed || approved,
+    escrowInFlight: escrowInFlight || fundingSubmitted,
+    escrowFunded: confirmed,
   });
 
   return (
@@ -475,38 +546,36 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             </div>
           </div>
 
-          <ol className="funding-steps">
-            <li className={stepStatuses[0]}>
-              <span>
-                {stepStatuses[0] === "complete" ? <Check size={14} /> : "1"}
-              </span>
-              <div>
-                <strong>Prepare funds on Arc</strong>
-                <p>
-                  Use Arc wallet USDC, bridge wallet USDC, or spend an existing
-                  Circle Gateway balance.
-                </p>
-              </div>
-            </li>
-            <li className={stepStatuses[1]}>
-              <span>
-                {stepStatuses[1] === "complete" ? <Check size={14} /> : "2"}
-              </span>
-              <div>
-                <strong>Fund the escrow</strong>
-                <p>One explicit transaction locks the agreement total.</p>
-              </div>
-            </li>
-            <li className={stepStatuses[2]}>
-              <span>
-                {stepStatuses[2] === "complete" ? <Check size={14} /> : "3"}
-              </span>
-              <div>
-                <strong>Wait for confirmation</strong>
-                <p>The provider can start only after Arc confirms funding.</p>
-              </div>
-            </li>
-          </ol>
+          <section className="live-funding-timeline" aria-label="Live funding timeline">
+            <div className="timeline-heading">
+              <span>Live funding timeline</span>
+              <small>{confirmed ? "Settlement verified" : "Updates as transactions confirm"}</small>
+            </div>
+            <ol className="funding-steps">
+              {timelineSteps.map((step, index) => {
+                const transaction = timelineTransactions[step.id as "route" | "arrival" | "escrow"];
+                return (
+                  <li className={step.status} key={step.id}>
+                    <span>{step.status === "complete" ? <Check size={14} /> : index + 1}</span>
+                    <div>
+                      <strong>{step.title}</strong>
+                      <p>{step.detail}</p>
+                      {step.id === "wallet" && wallet.address && step.status === "complete" && (
+                        <a href={`${ARC.explorerUrl}/address/${wallet.address}`} target="_blank" rel="noreferrer">
+                          View connected wallet <ExternalLink size={11} />
+                        </a>
+                      )}
+                      {transaction && (
+                        <a href={transaction.href} target="_blank" rel="noreferrer">
+                          {transaction.label} <ExternalLink size={11} />
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
         </div>
 
         <aside className="funding-widget">

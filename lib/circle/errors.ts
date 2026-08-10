@@ -1,6 +1,8 @@
 export type BridgeStepLike = {
   name: string;
   state: string;
+  txHash?: string;
+  transactionHash?: string;
   error?: unknown;
   errorMessage?: string;
   errorCategory?: string;

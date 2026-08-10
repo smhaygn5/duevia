@@ -381,6 +381,19 @@ function assertBridgeSuccess(
   throw failure;
 }
 
+function bridgeTransactionHashes(result: BridgeResultLike) {
+  const source = result.steps.find(
+    (step) => step.name === "burn" && step.state === "success",
+  );
+  const destination = result.steps.find(
+    (step) => step.name === "mint" && step.state === "success",
+  );
+  return {
+    sourceTxHash: source?.txHash ?? source?.transactionHash,
+    destinationTxHash: destination?.txHash ?? destination?.transactionHash,
+  };
+}
+
 export async function estimateArcBridge(
   source: FundingSource,
   amount: string,
@@ -426,7 +439,12 @@ export async function executeArcBridge(
   provider?: EthereumProvider,
 ) {
   if (source === "Arc_Testnet") {
-    return { state: "success" as const, steps: 0 };
+    return {
+      state: "success" as const,
+      steps: 0,
+      sourceTxHash: undefined,
+      destinationTxHash: undefined,
+    };
   }
   const key = bridgeKey(source, amount, account);
   if (resumableBridge?.key === key) {
@@ -440,9 +458,11 @@ export async function executeArcBridge(
         true,
       );
     }
+    const completed = assertBridgeSuccess(result, context, key);
     return {
-      state: assertBridgeSuccess(result, context, key).state,
+      state: completed.state,
       steps: result.steps.length,
+      ...bridgeTransactionHashes(result),
     };
   }
 
@@ -456,9 +476,11 @@ export async function executeArcBridge(
     token: "USDC",
     config: { batchTransactions: false },
   });
+  const completed = assertBridgeSuccess(result, context, key);
   return {
-    state: assertBridgeSuccess(result, context, key).state,
+    state: completed.state,
     steps: result.steps.length,
+    ...bridgeTransactionHashes(result),
   };
 }
 
