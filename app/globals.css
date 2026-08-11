@@ -3072,6 +3072,32 @@ button:disabled,
   margin-top: 1px;
 }
 
+.gateway-sync-status {
+  border: 1px solid rgba(86, 103, 255, 0.18);
+  border-radius: 10px;
+  color: #5d6580;
+  font-size: 9px;
+  line-height: 1.5;
+  margin-top: 10px;
+  padding: 10px 11px;
+}
+
+.gateway-sync-status.checking {
+  background: rgba(86, 103, 255, 0.07);
+}
+
+.gateway-sync-status.confirmed {
+  background: rgba(22, 136, 99, 0.08);
+  border-color: rgba(22, 136, 99, 0.2);
+  color: #168863;
+}
+
+.gateway-sync-status.waiting {
+  background: rgba(211, 146, 8, 0.08);
+  border-color: rgba(211, 146, 8, 0.2);
+  color: #8b5d00;
+}
+
 .widget-note {
   align-items: flex-start;
   color: #737991;

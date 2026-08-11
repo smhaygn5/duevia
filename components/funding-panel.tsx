@@ -11,7 +11,7 @@ import {
   LockKeyhole,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { parseUnits, type Hex } from "viem";
 import {
   checkArcBridgeReadiness,
@@ -37,6 +37,7 @@ import {
   type AgreementPayload,
 } from "@/lib/agreements/client";
 import { fundingTimelineSteps } from "@/lib/agreements/funding-progress";
+import { gatewayArrivalConfirmed } from "@/lib/agreements/gateway-sync";
 import {
   approveAgreementUsdc,
   deployAgreementEscrow,
@@ -58,6 +59,16 @@ type ReadinessItem = {
   detail: string;
   status: "ready" | "attention";
 };
+
+type StoredGatewaySync = {
+  agreementRef: string;
+  address: string;
+  amountMinor: string;
+  arcBalanceBefore: string;
+  startedAt: number;
+};
+
+const gatewaySyncStorageKey = "duevia:gateway-arrival-sync:v1";
 
 export function FundingPanel({ agreementRef }: { agreementRef: string }) {
   const wallet = useWallet();
@@ -83,6 +94,10 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
   >({});
   const [readiness, setReadiness] = useState<ReadinessItem[] | null>(null);
   const [readinessChecking, setReadinessChecking] = useState(false);
+  const [gatewaySync, setGatewaySync] = useState<
+    "idle" | "checking" | "confirmed" | "waiting"
+  >("idle");
+  const gatewaySyncStarted = useRef(false);
   const [progress, setProgress] = useState<string | null>(null);
   const agreement = agreementData?.agreement;
   const amount = agreement?.total_amount ?? demoAgreement.total.replace(",", "");
@@ -121,6 +136,96 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
         ),
       );
   }, [agreementRef, isDemo, wallet.address, wallet.authenticated]);
+
+  function readStoredGatewaySync() {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.sessionStorage.getItem(gatewaySyncStorageKey);
+      if (!raw) return null;
+      const stored = JSON.parse(raw) as StoredGatewaySync;
+      if (
+        stored.agreementRef !== agreementRef ||
+        stored.address.toLowerCase() !== wallet.address?.toLowerCase() ||
+        Date.now() - stored.startedAt > 10 * 60 * 1000
+      ) {
+        window.sessionStorage.removeItem(gatewaySyncStorageKey);
+        return null;
+      }
+      return stored;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearStoredGatewaySync() {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.removeItem(gatewaySyncStorageKey);
+    } catch {
+      // The in-memory state still prevents a duplicate funding attempt.
+    }
+  }
+
+  async function monitorGatewayArrival(
+    stored: StoredGatewaySync,
+    attempts = 12,
+  ) {
+    if (!wallet.address || gatewaySyncStarted.current) return;
+    gatewaySyncStarted.current = true;
+    setGatewaySync("checking");
+    try {
+      const amountMinor = BigInt(stored.amountMinor);
+      const before = BigInt(stored.arcBalanceBefore);
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        const balances = await readArcFundingBalances(wallet.address);
+        if (
+          gatewayArrivalConfirmed({
+            arcBalanceBefore: before,
+            arcBalanceNow: balances.usdc,
+            amount: amountMinor,
+          })
+        ) {
+          setGatewaySync("confirmed");
+          setBridgeComplete(true);
+          clearStoredGatewaySync();
+          setProgress("Gateway sync confirmed the USDC arrival on Arc. Continue to deploy or fund the escrow.");
+          return;
+        }
+        if (attempt < attempts - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2_000));
+        }
+      }
+      setGatewaySync("waiting");
+      setProgress("Gateway transfer is still being indexed on Arc. Check the arrival again before funding.");
+    } catch {
+      setGatewaySync("waiting");
+      setProgress("Gateway arrival could not be confirmed yet. Check the Arc balance again before funding.");
+    } finally {
+      gatewaySyncStarted.current = false;
+    }
+  }
+
+  function resumeGatewayArrivalCheck() {
+    const stored = readStoredGatewaySync();
+    if (stored) {
+      void monitorGatewayArrival(stored, 6);
+      return;
+    }
+    setError("The Gateway arrival session has expired. Reload the agreement and confirm the Arc balance before continuing.");
+  }
+
+  useEffect(() => {
+    if (method !== "unified" || !wallet.address || gatewaySyncStarted.current) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const stored = readStoredGatewaySync();
+      if (stored) void monitorGatewayArrival(stored);
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // The functions intentionally read the latest wallet and agreement values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [method, wallet.address]);
 
   async function estimate() {
     setError(null);
@@ -352,6 +457,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             : "Circle Gateway is minting unified USDC on Arc. Confirm each wallet step.",
         );
         const provider = await wallet.ensureProvider();
+        const arcBalanceBefore = await readArcFundingBalances(wallet.address);
         const result = await executeUnifiedSpend(amount, wallet.address, provider);
         if (result.txHash?.startsWith("0x")) {
           setTimelineTransactions((current) => ({
@@ -363,10 +469,25 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             },
           }));
         }
-        setBridgeComplete(true);
+        const gatewayArrival: StoredGatewaySync = {
+          agreementRef,
+          address: wallet.address,
+          amountMinor: agreementData.agreement.total_amount_minor,
+          arcBalanceBefore: arcBalanceBefore.usdc.toString(),
+          startedAt: Date.now(),
+        };
+        try {
+          window.sessionStorage.setItem(
+            gatewaySyncStorageKey,
+            JSON.stringify(gatewayArrival),
+          );
+        } catch {
+          // The current page can still verify the transfer in memory.
+        }
+        void monitorGatewayArrival(gatewayArrival);
         setBridgeResumeReady(false);
         setProgress(
-          "Unified USDC arrived on Arc. Continue to deploy or fund the escrow.",
+          "Gateway transfer is complete. Verifying the Arc USDC arrival now.",
         );
         return;
       }
@@ -629,6 +750,10 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
     ? "Funding confirmed"
     : isDemo
       ? "Prepare demo route"
+      : method === "unified" && gatewaySync === "checking"
+        ? "Confirming USDC arrival..."
+        : method === "unified" && gatewaySync === "waiting"
+          ? "Check USDC arrival"
       : method === "unified" && !bridgeComplete
         ? bridgeResumeReady
           ? "Resume Unified Balance"
@@ -650,7 +775,12 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
     route: method === "unified" ? "gateway" : directArc ? "direct" : "bridge",
     routePrepared: Boolean(quote),
     routeInFlight,
-    routeComplete: bridgeComplete || confirmed || approved,
+    routeComplete:
+      (method === "unified"
+        ? gatewaySync === "confirmed"
+        : bridgeComplete) ||
+      confirmed ||
+      approved,
     escrowInFlight: escrowInFlight || fundingSubmitted,
     escrowFunded: confirmed,
   });
@@ -758,6 +888,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                 setBridgeComplete(false);
                 setBridgeResumeReady(false);
                 setReadiness(null);
+                setGatewaySync("idle");
+                clearStoredGatewaySync();
               }}
             >
               Arc / Bridge
@@ -773,6 +905,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                 setBridgeComplete(false);
                 setBridgeResumeReady(false);
                 setReadiness(null);
+                setGatewaySync("idle");
+                clearStoredGatewaySync();
               }}
             >
               Gateway balance
@@ -796,6 +930,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                     setBridgeComplete(false);
                     setBridgeResumeReady(false);
                     setReadiness(null);
+                    setGatewaySync("idle");
+                    clearStoredGatewaySync();
                   }}
                 >
                   {fundingSources.map((option) => (
@@ -945,6 +1081,15 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
               </span>
             </div>
           )}
+          {method === "unified" && gatewaySync !== "idle" && (
+            <div className={`gateway-sync-status ${gatewaySync}`} role="status">
+              {gatewaySync === "confirmed"
+                ? "Gateway sync confirmed that USDC arrived on Arc."
+                : gatewaySync === "checking"
+                  ? "Checking the Arc USDC balance for the Gateway arrival…"
+                  : "Gateway is still indexing the transfer. Check the Arc arrival again when ready."}
+            </div>
+          )}
           {!quote ? (
             <button
               className="button button-primary funding-button"
@@ -963,10 +1108,14 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             <button
               className="button button-primary funding-button"
               type="button"
-              disabled={busy || confirmed || readinessChecking}
-              onClick={() =>
-                void (readinessPassed ? continueFunding() : runReadinessCheck())
-              }
+              disabled={busy || confirmed || readinessChecking || gatewaySync === "checking"}
+              onClick={() => {
+                if (method === "unified" && gatewaySync === "waiting") {
+                  resumeGatewayArrivalCheck();
+                  return;
+                }
+                void (readinessPassed ? continueFunding() : runReadinessCheck());
+              }}
             >
               {busy
                 ? "Waiting for wallet confirmation..."

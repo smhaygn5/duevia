@@ -4,6 +4,7 @@ import {
   fundingStepStatuses,
   fundingTimelineSteps,
 } from "../lib/agreements/funding-progress";
+import { gatewayArrivalConfirmed } from "../lib/agreements/gateway-sync";
 
 test("funding progress follows preparation, submission, and confirmation", () => {
   assert.deepEqual(
@@ -37,6 +38,25 @@ test("funding progress follows preparation, submission, and confirmation", () =>
       confirmed: true,
     }),
     ["complete", "complete", "complete"],
+  );
+});
+
+test("Gateway arrival waits for the Arc balance increase", () => {
+  assert.equal(
+    gatewayArrivalConfirmed({
+      arcBalanceBefore: 500_000n,
+      arcBalanceNow: 2_499_999n,
+      amount: 2_000_000n,
+    }),
+    false,
+  );
+  assert.equal(
+    gatewayArrivalConfirmed({
+      arcBalanceBefore: 500_000n,
+      arcBalanceNow: 2_500_000n,
+      amount: 2_000_000n,
+    }),
+    true,
   );
 });
 
