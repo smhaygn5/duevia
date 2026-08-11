@@ -9,6 +9,7 @@ import {
   erc20Abi,
   formatUnits,
   getAddress,
+  http,
   parseUnits,
   type Address,
 } from "viem";
@@ -84,6 +85,14 @@ export type UnifiedBalance = {
     chain: string;
     confirmedBalance: string;
   }>;
+};
+
+export type BridgeReadiness = {
+  source: string;
+  usdc: string;
+  native: string;
+  usdcSufficient: boolean;
+  gasAvailable: boolean;
 };
 
 type AdapterProvider = Parameters<
@@ -356,6 +365,39 @@ async function verifySourceFunds(
       `The source wallet needs ${option.walletChain.nativeCurrency.symbol} on ${option.label} for the network fee.`,
     );
   }
+}
+
+export async function checkArcBridgeReadiness(
+  source: FundingSource,
+  amount: string,
+  account: Address,
+  provider?: EthereumProvider,
+): Promise<BridgeReadiness> {
+  const context = await createBridgeContext(source, provider);
+  const option = fundingSources.find((candidate) => candidate.value === source);
+  if (!option || !context.sourceChain.usdcAddress) {
+    throw new ArcBridgeError("The selected source network is unavailable.");
+  }
+  const client = createPublicClient({
+    chain: option.walletChain,
+    transport: http(option.walletChain.rpcUrls.default.http[0]),
+  });
+  const [usdcBalance, nativeBalance] = await Promise.all([
+    client.readContract({
+      address: getAddress(context.sourceChain.usdcAddress),
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [account],
+    }),
+    client.getBalance({ address: account }),
+  ]);
+  return {
+    source: option.label,
+    usdc: formatUnits(usdcBalance, 6),
+    native: formatUnits(nativeBalance, option.walletChain.nativeCurrency.decimals),
+    usdcSufficient: usdcBalance >= parseUnits(amount, 6),
+    gasAvailable: nativeBalance > 0n,
+  };
 }
 
 function assertBridgeSuccess(

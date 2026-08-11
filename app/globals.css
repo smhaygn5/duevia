@@ -2942,6 +2942,105 @@ button:disabled,
   text-align: right;
 }
 
+.funding-readiness {
+  border: 1px solid rgba(17, 21, 40, 0.1);
+  border-radius: 13px;
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.readiness-heading,
+.readiness-heading > div,
+.funding-readiness li,
+.funding-readiness li > span {
+  align-items: center;
+  display: flex;
+}
+
+.readiness-heading {
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.readiness-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.readiness-heading span {
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.readiness-heading small {
+  color: #737991;
+  font-size: 9px;
+}
+
+.readiness-button {
+  border-color: rgba(17, 21, 40, 0.12);
+  color: #111528;
+  flex: 0 0 auto;
+  font-size: 9px;
+  min-height: 31px;
+  padding: 0 10px;
+}
+
+.funding-readiness ul {
+  display: grid;
+  gap: 9px;
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.funding-readiness li {
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.funding-readiness li > span {
+  background: rgba(17, 21, 40, 0.055);
+  border-radius: 50%;
+  color: #737991;
+  flex: 0 0 21px;
+  height: 21px;
+  justify-content: center;
+  margin-top: 1px;
+  width: 21px;
+}
+
+.funding-readiness li.ready > span {
+  background: rgba(22, 136, 99, 0.11);
+  color: #168863;
+}
+
+.funding-readiness li.attention > span {
+  background: rgba(211, 146, 8, 0.11);
+  color: #a56d00;
+}
+
+.funding-readiness li > div {
+  display: grid;
+  gap: 3px;
+}
+
+.funding-readiness li strong {
+  font-size: 10px;
+}
+
+.funding-readiness li p,
+.readiness-empty {
+  color: #737991;
+  font-size: 9px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.readiness-empty {
+  margin-top: 13px;
+}
+
 .funding-widget .button-primary {
   background: #111528;
   color: #fff;

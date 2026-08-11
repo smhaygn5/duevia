@@ -12,8 +12,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { Hex } from "viem";
+import { parseUnits, type Hex } from "viem";
 import {
+  checkArcBridgeReadiness,
   estimateArcBridge,
   estimateUnifiedSpend,
   executeArcBridge,
@@ -51,6 +52,13 @@ import {
 } from "@/lib/contracts/duevia";
 import { useWallet } from "./wallet-provider";
 
+type ReadinessItem = {
+  id: "wallet" | "network" | "usdc" | "gas";
+  label: string;
+  detail: string;
+  status: "ready" | "attention";
+};
+
 export function FundingPanel({ agreementRef }: { agreementRef: string }) {
   const wallet = useWallet();
   const isDemo = agreementRef.toUpperCase() === demoAgreement.publicRef;
@@ -73,6 +81,8 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
   const [timelineTransactions, setTimelineTransactions] = useState<
     Partial<Record<"route" | "arrival" | "escrow", { hash: Hex; href: string; label: string }>>
   >({});
+  const [readiness, setReadiness] = useState<ReadinessItem[] | null>(null);
+  const [readinessChecking, setReadinessChecking] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const agreement = agreementData?.agreement;
   const amount = agreement?.total_amount ?? demoAgreement.total.replace(",", "");
@@ -115,6 +125,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
   async function estimate() {
     setError(null);
     setQuote(null);
+    setReadiness(null);
     if (!wallet.address) {
       setError("Connect a wallet before preparing the funding route.");
       return;
@@ -169,6 +180,135 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function runReadinessCheck() {
+    setError(null);
+    if (isDemo) {
+      setReadiness([
+        { id: "wallet", label: "Client wallet", detail: "Demo wallet ready.", status: "ready" },
+        { id: "network", label: "Arc route", detail: "Demo route is configured for Arc Testnet.", status: "ready" },
+        { id: "usdc", label: "USDC amount", detail: `Demo balance covers ${amount} USDC.`, status: "ready" },
+        { id: "gas", label: "Network fee buffer", detail: "No transaction is broadcast in demo mode.", status: "ready" },
+      ]);
+      return;
+    }
+    if (!wallet.address || !wallet.authenticated) {
+      setReadiness([
+        { id: "wallet", label: "Client wallet", detail: "Connect and sign in with the agreement client wallet.", status: "attention" },
+        { id: "network", label: "Route", detail: "A connected wallet is required before the route can be checked.", status: "attention" },
+        { id: "usdc", label: "USDC amount", detail: "Balance has not been checked yet.", status: "attention" },
+        { id: "gas", label: "Network fee buffer", detail: "Balance has not been checked yet.", status: "attention" },
+      ]);
+      return;
+    }
+
+    setReadinessChecking(true);
+    try {
+      const provider = await wallet.ensureProvider();
+      const items: ReadinessItem[] = [
+        {
+          id: "wallet",
+          label: "Client wallet",
+          detail: "Connected and authenticated for this agreement.",
+          status: "ready",
+        },
+      ];
+
+      if (method === "unified") {
+        const balance = await getUnifiedUsdcBalance(wallet.address);
+        setUnifiedBalance(balance);
+        const sufficient = Number(balance.total) >= Number(amount);
+        items.push(
+          {
+            id: "network",
+            label: "Arc destination",
+            detail: "Circle Gateway will mint the unified balance on Arc Testnet.",
+            status: "ready",
+          },
+          {
+            id: "usdc",
+            label: "Unified USDC balance",
+            detail: `${balance.total} USDC available across ${balance.chains} funded chain${balance.chains === 1 ? "" : "s"}.`,
+            status: sufficient ? "ready" : "attention",
+          },
+          {
+            id: "gas",
+            label: "Route estimate",
+            detail: quote ? "Circle Gateway route estimate is ready." : "Estimate the Gateway route first.",
+            status: quote ? "ready" : "attention",
+          },
+        );
+      } else if (directArc) {
+        const [balances, rawChainId] = await Promise.all([
+          readArcFundingBalances(wallet.address),
+          provider.request<string>({ method: "eth_chainId" }),
+        ]);
+        const required = agreement
+          ? BigInt(agreement.total_amount_minor)
+          : parseUnits(amount, 6);
+        const balanceIssue = fundingBalanceError(balances, required);
+        const onArc = Number.parseInt(rawChainId, 16) === ARC.chainId;
+        items.push(
+          {
+            id: "network",
+            label: "Arc Testnet",
+            detail: onArc ? "The connected wallet is already on Arc Testnet." : "Switch the wallet to Arc Testnet before funding.",
+            status: onArc ? "ready" : "attention",
+          },
+          {
+            id: "usdc",
+            label: "Escrow amount",
+            detail: `${Number(amount).toLocaleString()} USDC is required; the wallet has ${(Number(balances.usdc) / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 6 })} USDC on Arc.`,
+            status: balances.usdc >= required ? "ready" : "attention",
+          },
+          {
+            id: "gas",
+            label: "Arc network fee buffer",
+            detail: balanceIssue ?? "A USDC buffer remains after the agreement total for Arc network fees.",
+            status: balanceIssue ? "attention" : "ready",
+          },
+        );
+      } else {
+        const sourceCheck = await checkArcBridgeReadiness(
+          source,
+          amount,
+          wallet.address,
+          provider,
+        );
+        items.push(
+          {
+            id: "network",
+            label: "Selected source route",
+            detail: `${sourceCheck.source} will be switched in the wallet when the Circle route starts.`,
+            status: quote ? "ready" : "attention",
+          },
+          {
+            id: "usdc",
+            label: "Source USDC",
+            detail: `${sourceCheck.usdc} USDC available on ${sourceCheck.source}; ${amount} USDC required.`,
+            status: sourceCheck.usdcSufficient ? "ready" : "attention",
+          },
+          {
+            id: "gas",
+            label: "Source network fee",
+            detail: sourceCheck.gasAvailable
+              ? `${sourceCheck.native} ${selected?.walletChain.nativeCurrency.symbol} available for the source transaction.`
+              : `Add ${selected?.walletChain.nativeCurrency.symbol} on ${sourceCheck.source} before bridging.`,
+            status: sourceCheck.gasAvailable ? "ready" : "attention",
+          },
+        );
+      }
+      setReadiness(items);
+    } catch (readinessError) {
+      setError(
+        readinessError instanceof Error
+          ? readinessError.message
+          : "Funding readiness could not be checked.",
+      );
+    } finally {
+      setReadinessChecking(false);
     }
   }
 
@@ -502,6 +642,9 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
           : !approved
             ? "Approve agreement amount"
             : "Fund escrow";
+  const readinessPassed = Boolean(
+    readiness && readiness.every((item) => item.status === "ready"),
+  );
   const timelineSteps = fundingTimelineSteps({
     walletConfirmed: Boolean(wallet.authenticated && wallet.address),
     route: method === "unified" ? "gateway" : directArc ? "direct" : "bridge",
@@ -614,6 +757,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                 setUnifiedBalance(null);
                 setBridgeComplete(false);
                 setBridgeResumeReady(false);
+                setReadiness(null);
               }}
             >
               Arc / Bridge
@@ -628,6 +772,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                 setUnifiedBalance(null);
                 setBridgeComplete(false);
                 setBridgeResumeReady(false);
+                setReadiness(null);
               }}
             >
               Gateway balance
@@ -650,6 +795,7 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
                     setQuote(null);
                     setBridgeComplete(false);
                     setBridgeResumeReady(false);
+                    setReadiness(null);
                   }}
                 >
                   {fundingSources.map((option) => (
@@ -728,6 +874,48 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             </div>
           </div>
 
+          {quote && (
+            <section className="funding-readiness" aria-live="polite">
+              <div className="readiness-heading">
+                <div>
+                  <span>Funding readiness</span>
+                  <small>
+                    {readiness
+                      ? readinessPassed
+                        ? "Ready to continue"
+                        : "Action needed before funding"
+                      : "Check before continuing"}
+                  </small>
+                </div>
+                <button
+                  className="button button-quiet readiness-button"
+                  type="button"
+                  onClick={() => void runReadinessCheck()}
+                  disabled={readinessChecking || busy}
+                >
+                  {readinessChecking ? "Checking…" : readiness ? "Check again" : "Run check"}
+                </button>
+              </div>
+              {readiness ? (
+                <ul>
+                  {readiness.map((item) => (
+                    <li className={item.status} key={item.id}>
+                      <span>{item.status === "ready" ? <Check size={13} /> : <Info size={13} />}</span>
+                      <div>
+                        <strong>{item.label}</strong>
+                        <p>{item.detail}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="readiness-empty">
+                  Confirm the wallet, USDC amount, selected route, and fee buffer before a transaction is requested.
+                </p>
+              )}
+            </section>
+          )}
+
           {error && <div className="form-error" role="alert">{error}</div>}
           {method === "bridge" && directArc && quote && (
             <div className="gateway-disclosure">
@@ -775,10 +963,18 @@ export function FundingPanel({ agreementRef }: { agreementRef: string }) {
             <button
               className="button button-primary funding-button"
               type="button"
-              disabled={busy || confirmed}
-              onClick={() => void continueFunding()}
+              disabled={busy || confirmed || readinessChecking}
+              onClick={() =>
+                void (readinessPassed ? continueFunding() : runReadinessCheck())
+              }
             >
-              {busy ? "Waiting for wallet confirmation..." : actionLabel}
+              {busy
+                ? "Waiting for wallet confirmation..."
+                : readinessChecking
+                  ? "Checking funding readiness..."
+                  : readinessPassed
+                    ? actionLabel
+                    : "Run funding readiness check"}
             </button>
           )}
 
