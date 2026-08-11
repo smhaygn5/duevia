@@ -25,6 +25,7 @@ type ReceiptModel = {
   network: string;
   date: string;
   txHash: string;
+  approvalChecklist?: readonly string[];
 };
 
 export function ReceiptCard({ receiptId }: { receiptId: string }) {
@@ -141,6 +142,20 @@ export function ReceiptCard({ receiptId }: { receiptId: string }) {
             </button>
           )}
         </div>
+
+        {receipt.approvalChecklist && receipt.approvalChecklist.length > 0 && (
+          <div className="receipt-checklist">
+            <span>Approval checklist</span>
+            <ul>
+              {receipt.approvalChecklist.map((item) => (
+                <li key={item}>
+                  <Check size={13} />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {isDemo && (
           <div className="demo-disclosure">

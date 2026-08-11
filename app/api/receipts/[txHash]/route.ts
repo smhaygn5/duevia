@@ -121,6 +121,11 @@ export async function GET(
           timeZone: "UTC",
         }),
         txHash: row.tx_hash,
+        approvalChecklist: Array.isArray(detail.approvalChecklist)
+          ? detail.approvalChecklist.filter(
+              (item): item is string => typeof item === "string",
+            )
+          : [],
       },
     });
   } catch (error) {

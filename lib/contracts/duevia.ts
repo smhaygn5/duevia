@@ -365,6 +365,7 @@ export async function syncAgreementTransaction(
     note: string;
   },
   reviewNote?: string,
+  approvalChecklist?: string[],
 ) {
   const response = await fetch(`/api/agreements/${publicRef}/sync`, {
     method: "POST",
@@ -376,6 +377,7 @@ export async function syncAgreementTransaction(
           : transaction.transactionHash,
       submission,
       reviewNote,
+      approvalChecklist,
     }),
   });
   const payload = (await response.json()) as {

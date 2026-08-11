@@ -23,6 +23,7 @@ import {
   syncAgreementTransaction,
   writeEscrowAction,
 } from "@/lib/contracts/duevia";
+import { isApprovalChecklistComplete } from "@/lib/agreements/approval-checklist";
 import { useWallet } from "./wallet-provider";
 
 type ReviewState = "review" | "changes" | "approve";
@@ -32,6 +33,7 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
   const wallet = useWallet();
   const [state, setState] = useState<ReviewState>("review");
   const [feedback, setFeedback] = useState("");
+  const [checkedChecklist, setCheckedChecklist] = useState<string[]>([]);
   const [changesSent, setChangesSent] = useState(false);
   const [agreementData, setAgreementData] = useState<AgreementPayload | null>(
     null,
@@ -115,6 +117,10 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
 
   async function confirmRelease() {
     setError(null);
+    if (!checklistComplete) {
+      setError("Review every checklist item before releasing this milestone.");
+      return;
+    }
     if (isDemo) {
       router.push("/app/receipts/demo");
       return;
@@ -143,7 +149,13 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
           args: [BigInt(currentMilestone.position - 1)],
         },
       );
-      await syncAgreementTransaction(agreementRef, receipt);
+      await syncAgreementTransaction(
+        agreementRef,
+        receipt,
+        undefined,
+        undefined,
+        approvalChecklist.map((item) => item.label),
+      );
       router.push(`/app/receipts/${receipt.transactionHash}`);
     } catch (releaseError) {
       setError(
@@ -208,6 +220,48 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
           complete: true,
         },
       ];
+  const revisionsRemaining = Math.max(
+    (currentMilestone?.revision_limit ?? 1) -
+      (currentMilestone?.revisions_used ?? 0),
+    0,
+  );
+  const approvalChecklist = [
+    {
+      id: "delivery",
+      label: "I reviewed the submitted delivery package.",
+      available: deliverables.length > 0,
+    },
+    ...criteria.map((criterion, index) => ({
+      id: `criterion-${index}`,
+      label: `I verified: ${criterion.label}`,
+      available: criterion.complete,
+    })),
+    {
+      id: "revisions",
+      label:
+        revisionsRemaining > 0
+          ? `${revisionsRemaining} revision ${revisionsRemaining === 1 ? "remains" : "remain"} available before release.`
+          : "The agreed revision limit has been used.",
+      available: true,
+    },
+    {
+      id: "settlement",
+      label: `I understand this approval releases exactly ${amount} on Arc Testnet.`,
+      available: true,
+    },
+  ];
+  const checklistComplete = isApprovalChecklistComplete(
+    approvalChecklist,
+    checkedChecklist,
+  );
+
+  function toggleChecklistItem(id: string) {
+    setCheckedChecklist((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
+  }
 
   if (changesSent) {
     return (
@@ -437,11 +491,38 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
                   <strong>Arc Testnet</strong>
                 </div>
               </div>
+              <section className="approval-checklist" aria-label="Approval checklist">
+                <header>
+                  <div>
+                    <span>Approval checklist</span>
+                    <p>Confirm every item before settlement is released.</p>
+                  </div>
+                  <strong>
+                    {checkedChecklist.length} / {approvalChecklist.length}
+                  </strong>
+                </header>
+                <div>
+                  {approvalChecklist.map((item) => (
+                    <label
+                      className={item.available ? "" : "unavailable"}
+                      key={item.id}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checkedChecklist.includes(item.id)}
+                        disabled={!item.available || busy}
+                        onChange={() => toggleChecklistItem(item.id)}
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </section>
               {error && <div className="form-error" role="alert">{error}</div>}
               <button
                 className="button button-approve decision-submit"
                 type="button"
-                disabled={busy}
+                disabled={busy || !checklistComplete}
                 onClick={() => void confirmRelease()}
               >
                 {busy ? "Confirming on Arc..." : "Confirm and release"}

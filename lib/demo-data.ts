@@ -112,6 +112,14 @@ export const demoReceipt = {
   date: "Jul 15, 2026 · 14:18 UTC",
   txHash:
     "0x7c03c77c2b0fb97875d231df3f90a4cc6dfad3b5633a0c733524192da16991f2",
+  approvalChecklist: [
+    "I reviewed the submitted delivery package.",
+    "I verified: Responsive product screens",
+    "I verified: Core interaction states",
+    "I verified: Implementation handoff",
+    "1 revision remains available before release.",
+    "I understand this approval releases exactly 2,500 USDC on Arc Testnet.",
+  ],
 } as const;
 
 export const demoDelivery = {

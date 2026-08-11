@@ -28,6 +28,11 @@ export const dynamic = "force-dynamic";
 const syncSchema = z.object({
   txHash: z.string().refine(isHash, "Invalid Arc transaction hash"),
   reviewNote: z.string().trim().min(10).max(2_000).optional(),
+  approvalChecklist: z
+    .array(z.string().trim().min(3).max(220))
+    .min(1)
+    .max(12)
+    .optional(),
   submission: z
     .object({
       id: z.string().uuid(),
@@ -474,6 +479,12 @@ export async function POST(
           reviewNote: input.reviewNote ?? null,
         };
       } else {
+        if (!input.approvalChecklist?.length) {
+          return NextResponse.json(
+            { error: "Approval checklist is required before settlement release." },
+            { status: 422 },
+          );
+        }
         activityType = "milestone.released";
         updates.push(
           db
@@ -498,7 +509,11 @@ export async function POST(
               .bind(now, agreement.id),
           );
         }
-        detail = { ...detail, amountMinor: String(args.amount) };
+        detail = {
+          ...detail,
+          amountMinor: String(args.amount),
+          approvalChecklist: input.approvalChecklist ?? [],
+        };
       }
     } else if (event.eventName === "CancellationApproval") {
       activityType = "agreement.cancellation_approval";
