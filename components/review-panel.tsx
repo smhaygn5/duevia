@@ -24,6 +24,7 @@ import {
   writeEscrowAction,
 } from "@/lib/contracts/duevia";
 import { isApprovalChecklistComplete } from "@/lib/agreements/approval-checklist";
+import { getSubmissionVersions } from "@/lib/agreements/versioned-deliverables";
 import { useWallet } from "./wallet-provider";
 
 type ReviewState = "review" | "changes" | "approve";
@@ -34,6 +35,9 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
   const [state, setState] = useState<ReviewState>("review");
   const [feedback, setFeedback] = useState("");
   const [checkedChecklist, setCheckedChecklist] = useState<string[]>([]);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(
+    null,
+  );
   const [changesSent, setChangesSent] = useState(false);
   const [agreementData, setAgreementData] = useState<AgreementPayload | null>(
     null,
@@ -47,7 +51,7 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
   const submission = agreementData?.submissions.find(
     (item) => item.milestone_position === currentMilestone?.position,
   );
-  const realDeliverables =
+  const currentRealDeliverables =
     agreementData?.deliverables.filter(
       (item) => item.submission_id === submission?.id,
     ) ?? [];
@@ -64,6 +68,10 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
         ),
       );
   }, [agreementRef, isDemo, wallet.authenticated]);
+
+  useEffect(() => {
+    if (submission?.id) setSelectedSubmissionId(submission.id);
+  }, [submission?.id]);
 
   async function requestChanges(event: FormEvent) {
     event.preventDefault();
@@ -197,14 +205,14 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
       : demoDelivery.reviewDeadline;
   const summary =
     submission?.note?.split("\n\n")[0] ?? demoDelivery.summary;
-  const deliverables = isDemo
+  const currentDeliverables = isDemo
     ? demoDelivery.deliverables.map((item) => ({
         id: item.id,
         name: item.name,
         meta: item.meta,
         href: null,
       }))
-    : realDeliverables.map((item) => ({
+    : currentRealDeliverables.map((item) => ({
         id: item.id,
         name: item.original_name,
         meta: `${Math.max(item.size_bytes / 1_048_576, 0.01).toFixed(2)} MB`,
@@ -220,6 +228,43 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
           complete: true,
         },
       ];
+  const submissionVersions = isDemo
+    ? [
+        {
+          id: "demo-current-submission",
+          milestone_position: milestonePosition,
+          submitted_at: 0,
+          note: demoDelivery.summary,
+          version: 1,
+          isLatest: true,
+        },
+      ]
+    : getSubmissionVersions(
+        agreementData?.submissions ?? [],
+        currentMilestone?.position ?? milestonePosition,
+      );
+  const viewedSubmissionId = selectedSubmissionId ?? submissionVersions[0]?.id;
+  const viewedSubmission = submissionVersions.find(
+    (item) => item.id === viewedSubmissionId,
+  );
+  const viewedSubmittedAt =
+    viewedSubmission && !isDemo
+      ? new Date(viewedSubmission.submitted_at).toLocaleString("en", {
+          dateStyle: "medium",
+          timeStyle: "short",
+          timeZone: "UTC",
+        })
+      : submittedAt;
+  const viewedDeliverables = isDemo
+    ? currentDeliverables
+    : (agreementData?.deliverables ?? [])
+        .filter((item) => item.submission_id === viewedSubmissionId)
+        .map((item) => ({
+          id: item.id,
+          name: item.original_name,
+          meta: `${Math.max(item.size_bytes / 1_048_576, 0.01).toFixed(2)} MB`,
+          href: `/api/deliverables/${item.id}`,
+        }));
   const revisionsRemaining = Math.max(
     (currentMilestone?.revision_limit ?? 1) -
       (currentMilestone?.revisions_used ?? 0),
@@ -229,7 +274,7 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
     {
       id: "delivery",
       label: "I reviewed the submitted delivery package.",
-      available: deliverables.length > 0,
+      available: currentDeliverables.length > 0,
     },
     ...criteria.map((criterion, index) => ({
       id: `criterion-${index}`,
@@ -324,13 +369,40 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
               <div>
                 <span>Submitted by {provider}</span>
                 <h2>Delivery package</h2>
-                <p>{submittedAt}</p>
+                <p>{viewedSubmittedAt}</p>
               </div>
-              <span className="status-badge status-submitted">Submitted</span>
+              <span className="status-badge status-submitted">
+                Version {viewedSubmission?.version ?? 1}
+              </span>
             </header>
-            <p className="delivery-summary">{summary}</p>
+            <p className="delivery-summary">
+              {viewedSubmission?.note?.split("\n\n")[0] ?? summary}
+            </p>
+            <section className="deliverable-version-history" aria-label="Delivery versions">
+              <div>
+                <span>Delivery versions</span>
+                <small>
+                  {submissionVersions.length === 1
+                    ? "This is the first submitted version."
+                    : "Earlier versions remain available for review."}
+                </small>
+              </div>
+              <nav aria-label="Choose a delivery version">
+                {submissionVersions.map((version) => (
+                  <button
+                    className={version.id === viewedSubmissionId ? "active" : ""}
+                    key={version.id}
+                    type="button"
+                    onClick={() => setSelectedSubmissionId(version.id)}
+                  >
+                    V{version.version}
+                    {version.isLatest ? " · Current" : ""}
+                  </button>
+                ))}
+              </nav>
+            </section>
             <div className="deliverable-list">
-              {deliverables.map((deliverable, index) => (
+              {viewedDeliverables.map((deliverable, index) => (
                 <div className="deliverable-row" key={deliverable.id}>
                   <span className="file-icon">
                     {index === 2 ? <ExternalLink size={17} /> : <FileText size={17} />}

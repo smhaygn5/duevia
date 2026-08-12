@@ -3292,6 +3292,56 @@ button:disabled,
   margin: 20px 0 0;
 }
 
+.deliverable-version-history {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 12px 0;
+}
+
+.deliverable-version-history > div {
+  display: grid;
+  gap: 4px;
+}
+
+.deliverable-version-history span {
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.deliverable-version-history small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.deliverable-version-history nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.deliverable-version-history button {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 9px;
+  padding: 6px 8px;
+}
+
+.deliverable-version-history button.active {
+  background: rgba(124, 140, 255, 0.12);
+  border-color: rgba(124, 140, 255, 0.32);
+  color: var(--accent-bright);
+}
+
 .criteria-list {
   display: grid;
   gap: 9px;
