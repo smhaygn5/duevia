@@ -191,6 +191,21 @@ export function ensureRuntimeSchema() {
         ON activities (agreement_id, occurred_at)`,
       `CREATE UNIQUE INDEX IF NOT EXISTS activity_tx_hash_unique
         ON activities (tx_hash)`,
+      `CREATE TABLE IF NOT EXISTS change_orders (
+        id TEXT PRIMARY KEY NOT NULL,
+        agreement_id TEXT NOT NULL REFERENCES agreements(id) ON DELETE CASCADE,
+        proposer_wallet_id TEXT NOT NULL REFERENCES wallets(id),
+        accepted_by_wallet_id TEXT REFERENCES wallets(id),
+        title TEXT NOT NULL,
+        detail TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        status TEXT DEFAULT 'pending' NOT NULL,
+        created_at INTEGER NOT NULL,
+        accepted_at INTEGER,
+        updated_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS change_order_agreement_time_idx
+        ON change_orders (agreement_id, created_at)`,
       `CREATE TABLE IF NOT EXISTS api_rate_limits (
         key TEXT PRIMARY KEY NOT NULL,
         window_started_at INTEGER NOT NULL,

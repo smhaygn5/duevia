@@ -17,6 +17,7 @@ import { StatusBadge } from "./status-badge";
 import { useWallet } from "./wallet-provider";
 import { demoAgreement } from "@/lib/demo-data";
 import { publicProofUrl } from "@/lib/agreements/public-proof";
+import { ChangeOrderPanel } from "./change-order-panel";
 
 type DetailModel = {
   publicRef: string;
@@ -339,6 +340,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
               ))}
             </div>
           </section>
+          {!isDemo && <ChangeOrderPanel agreementRef={detail.publicRef} />}
         </div>
 
         <aside className="action-panel">

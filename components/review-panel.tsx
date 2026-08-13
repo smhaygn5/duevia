@@ -69,10 +69,6 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
       );
   }, [agreementRef, isDemo, wallet.authenticated]);
 
-  useEffect(() => {
-    if (submission?.id) setSelectedSubmissionId(submission.id);
-  }, [submission?.id]);
-
   async function requestChanges(event: FormEvent) {
     event.preventDefault();
     if (!feedback.trim()) return;

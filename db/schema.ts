@@ -231,6 +231,28 @@ export const activities = sqliteTable(
   ],
 );
 
+export const changeOrders = sqliteTable(
+  "change_orders",
+  {
+    id: text("id").primaryKey(),
+    agreementId: text("agreement_id")
+      .notNull()
+      .references(() => agreements.id, { onDelete: "cascade" }),
+    proposerWalletId: text("proposer_wallet_id")
+      .notNull()
+      .references(() => wallets.id),
+    acceptedByWalletId: text("accepted_by_wallet_id").references(() => wallets.id),
+    title: text("title").notNull(),
+    detail: text("detail").notNull(),
+    scope: text("scope").notNull(),
+    status: text("status").notNull().default("pending"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    acceptedAt: integer("accepted_at", { mode: "timestamp_ms" }),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("change_order_agreement_time_idx").on(table.agreementId, table.createdAt)],
+);
+
 export const chainEvents = sqliteTable(
   "chain_events",
   {
