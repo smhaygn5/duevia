@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Clock3,
+  AlertTriangle,
   FileCheck2,
   LockKeyhole,
 } from "lucide-react";
@@ -33,6 +34,11 @@ function formatUsdc(minor: string) {
     maximumFractionDigits: 2,
   });
 }
+
+const demoDeadlineRisks = [
+  { agreementRef: demoAgreement.publicRef, title: "Product build", dueAt: Date.parse("2026-08-15T12:00:00.000Z"), level: "medium" as const, label: "Due within 48 hours", action: "Review progress with provider" },
+  { agreementRef: "DV-9M1C", title: "Discovery brief", dueAt: Date.parse("2026-08-20T12:00:00.000Z"), level: "low" as const, label: "Upcoming", action: "Prepare or update delivery" },
+];
 
 export function DashboardOverview() {
   const wallet = useWallet();
@@ -210,6 +216,26 @@ export function DashboardOverview() {
 
       {(!wallet.authenticated || isVerified) && (
         <>
+          <section className="panel deadline-risk-center">
+            <header className="panel-header">
+              <div>
+                <h2>Deadline & risk center</h2>
+                <p>{isVerified ? "Upcoming milestones and the next action for your role." : "A sample view of the deadlines that need attention."}</p>
+              </div>
+              <span className="risk-count">{isVerified ? dashboard!.deadlineRisks.length : 2} open</span>
+            </header>
+            <div className="risk-list">
+              {(isVerified ? dashboard!.deadlineRisks : demoDeadlineRisks).map((risk) => (
+                <Link className={`risk-row ${risk.level}`} key={`${risk.agreementRef}-${risk.title}`} href={`/app/agreements/${risk.agreementRef.toLowerCase()}`}>
+                  <span className="risk-icon"><AlertTriangle size={15} /></span>
+                  <div><small>{risk.agreementRef} · {risk.label}</small><strong>{risk.title}</strong><p>{risk.action}</p></div>
+                  <time>{new Date(risk.dueAt).toLocaleDateString("en", { month: "short", day: "numeric" })}</time>
+                  <ArrowRight size={15} />
+                </Link>
+              ))}
+              {isVerified && !dashboard!.deadlineRisks.length && <div className="risk-empty"><CheckCircle2 size={16} /> No active milestone deadlines need attention.</div>}
+            </div>
+          </section>
           <section className="metric-grid" aria-label="Workspace summary">
             <article className="metric-card">
               <span className="metric-icon">

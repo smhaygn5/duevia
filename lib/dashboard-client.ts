@@ -4,6 +4,7 @@ import {
   type AgreementPayload,
 } from "@/lib/agreements/client";
 import { computeDashboardSummary } from "@/lib/dashboard";
+import { deadlineRisks, type DeadlineRisk } from "@/lib/agreements/deadline-risk";
 
 export type DashboardAgreement = {
   public_ref: string;
@@ -35,6 +36,7 @@ export type DashboardPayload = {
   };
   agreements: DashboardAgreement[];
   activities: DashboardActivity[];
+  deadlineRisks: DeadlineRisk[];
   updatedAt: number;
 };
 
@@ -116,6 +118,17 @@ async function requestVerifiedDashboard(): Promise<DashboardPayload> {
     list.agreements.map((agreement) => loadAgreement(agreement.public_ref)),
   );
   const activities = flattenActivities(payloads);
+  const risks = deadlineRisks(
+    payloads.flatMap((payload) =>
+      payload.milestones.map((milestone) => ({
+        dueAt: milestone.due_at,
+        state: milestone.state,
+        title: milestone.title,
+        agreementRef: payload.agreement.public_ref,
+        currentRole: payload.agreement.current_role,
+      })),
+    ),
+  );
 
   return {
     source: "arc-verified",
@@ -125,6 +138,7 @@ async function requestVerifiedDashboard(): Promise<DashboardPayload> {
       updated_at: agreement.updated_at ?? 0,
     })),
     activities: activities.slice(0, 25),
+    deadlineRisks: risks.slice(0, 8),
     updatedAt: Math.max(
       0,
       ...payloads.map((payload) => payload.agreement.updated_at),
