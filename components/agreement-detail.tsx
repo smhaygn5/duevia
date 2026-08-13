@@ -16,6 +16,7 @@ import { AppHeader } from "./app-header";
 import { StatusBadge } from "./status-badge";
 import { useWallet } from "./wallet-provider";
 import { demoAgreement } from "@/lib/demo-data";
+import { publicProofUrl } from "@/lib/agreements/public-proof";
 
 type DetailModel = {
   publicRef: string;
@@ -421,6 +422,10 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
               Open explorer
               <ExternalLink size={13} />
             </a>
+            <Link className="public-proof-link" href={publicProofUrl(detail.publicRef)} target="_blank">
+              Public proof page
+              <ExternalLink size={13} />
+            </Link>
             <Link
               className="recovery-link"
               href={`/app/agreements/${detail.publicRef.toLowerCase()}/recovery`}
