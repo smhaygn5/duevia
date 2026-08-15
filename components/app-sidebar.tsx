@@ -3,6 +3,7 @@
 import {
   Activity,
   FileText,
+  ReceiptText,
   LayoutDashboard,
   Plus,
   Settings,
@@ -15,6 +16,7 @@ const links = [
   { href: "/app", label: "Overview", icon: LayoutDashboard },
   { href: "/app/agreements", label: "Agreements", icon: FileText },
   { href: "/app/activity", label: "Activity", icon: Activity },
+  { href: "/app/receipts", label: "Receipts", icon: ReceiptText },
   { href: "/app/settings", label: "Settings", icon: Settings },
 ];
 
