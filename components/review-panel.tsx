@@ -5,9 +5,11 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  Copy,
   Download,
   ExternalLink,
   FileText,
+  Fingerprint,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +27,7 @@ import {
 } from "@/lib/contracts/duevia";
 import { isApprovalChecklistComplete } from "@/lib/agreements/approval-checklist";
 import { getSubmissionVersions } from "@/lib/agreements/versioned-deliverables";
+import { contentHashLabel } from "@/lib/agreements/delivery-integrity";
 import { useWallet } from "./wallet-provider";
 
 type ReviewState = "review" | "changes" | "approve";
@@ -43,6 +46,7 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
     null,
   );
   const [busy, setBusy] = useState(false);
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isDemo = agreementRef.toUpperCase() === demoAgreement.publicRef;
   const currentMilestone = agreementData
@@ -207,12 +211,14 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
         name: item.name,
         meta: item.meta,
         href: null,
+        contentHash: `demo-${item.id}-delivery-integrity-record`,
       }))
     : currentRealDeliverables.map((item) => ({
         id: item.id,
         name: item.original_name,
         meta: `${Math.max(item.size_bytes / 1_048_576, 0.01).toFixed(2)} MB`,
         href: `/api/deliverables/${item.id}`,
+        contentHash: item.content_hash,
       }));
   const criteria = isDemo
     ? demoDelivery.criteria
@@ -260,6 +266,7 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
           name: item.original_name,
           meta: `${Math.max(item.size_bytes / 1_048_576, 0.01).toFixed(2)} MB`,
           href: `/api/deliverables/${item.id}`,
+          contentHash: item.content_hash,
         }));
   const revisionsRemaining = Math.max(
     (currentMilestone?.revision_limit ?? 1) -
@@ -302,6 +309,16 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
         ? current.filter((item) => item !== id)
         : [...current, id],
     );
+  }
+
+  async function copyHash(hash: string) {
+    try {
+      await navigator.clipboard.writeText(hash);
+      setCopiedHash(hash);
+      window.setTimeout(() => setCopiedHash(null), 1_800);
+    } catch {
+      setError("The integrity hash could not be copied. Please copy it from the manifest.");
+    }
   }
 
   if (changesSent) {
@@ -426,6 +443,31 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
                 </div>
               ))}
             </div>
+            <section className="delivery-integrity" aria-label="Delivery integrity manifest">
+              <header>
+                <span><Fingerprint size={16} /></span>
+                <div>
+                  <strong>Delivery integrity manifest</strong>
+                  <p>Each uploaded file is identified by its SHA-256 content hash.</p>
+                </div>
+              </header>
+              <div>
+                {viewedDeliverables.map((deliverable) => (
+                  <div className="delivery-integrity-row" key={`${deliverable.id}-hash`}>
+                    <small>{deliverable.name}</small>
+                    <code title={deliverable.contentHash}>{contentHashLabel(deliverable.contentHash)}</code>
+                    <button
+                      type="button"
+                      onClick={() => void copyHash(deliverable.contentHash)}
+                      aria-label={`Copy integrity hash for ${deliverable.name}`}
+                    >
+                      <Copy size={14} />
+                      {copiedHash === deliverable.contentHash ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
           </article>
 
           <article className="panel criteria-card">
