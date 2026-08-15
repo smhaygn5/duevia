@@ -22,6 +22,13 @@
   --popover-background: #0a0f22;
   --sidebar-background: rgba(4, 8, 25, 0.82);
   --warning: #ffd594;
+  --settlement-surface: #f4f6fb;
+  --settlement-foreground: #11172a;
+  --settlement-muted: #697188;
+  --settlement-line: rgba(35, 48, 82, 0.12);
+  --settlement-success: #168863;
+  --settlement-action: #17203a;
+  --settlement-shadow: 0 24px 65px rgba(0, 0, 0, 0.22);
   --wash-02: rgba(255, 255, 255, 0.02);
   --wash-025: rgba(255, 255, 255, 0.025);
   --wash-035: rgba(255, 255, 255, 0.035);
@@ -59,6 +66,13 @@
   --popover-background: #ffffff;
   --sidebar-background: rgba(255, 255, 255, 0.86);
   --warning: #906018;
+  --settlement-surface: #ffffff;
+  --settlement-foreground: #17203a;
+  --settlement-muted: #68718a;
+  --settlement-line: rgba(35, 48, 82, 0.12);
+  --settlement-success: #13795b;
+  --settlement-action: #17203a;
+  --settlement-shadow: 0 20px 55px rgba(38, 52, 89, 0.1);
   --wash-02: rgba(17, 25, 53, 0.02);
   --wash-025: rgba(17, 25, 53, 0.025);
   --wash-035: rgba(17, 25, 53, 0.035);
@@ -91,6 +105,7 @@ body {
     sans-serif;
   min-height: 100vh;
   cursor: default;
+  transition: background 220ms ease, color 180ms ease;
 }
 
 a {
@@ -2761,9 +2776,10 @@ button:disabled,
 }
 
 .funding-widget {
-  background: #f6f7fb;
+  background: var(--settlement-surface);
+  box-shadow: var(--settlement-shadow);
   border-radius: 22px;
-  color: #111528;
+  color: var(--settlement-foreground);
   padding: 21px;
 }
 
@@ -2785,7 +2801,7 @@ button:disabled,
 }
 
 .funding-widget > header small {
-  color: #737991;
+  color: var(--settlement-muted);
   font-size: 10px;
   line-height: 1.4;
 }
@@ -2830,27 +2846,27 @@ button:disabled,
 }
 
 .funding-method-tabs {
-  border-color: rgba(17, 21, 40, 0.1);
+  border-color: var(--settlement-line);
   margin: 19px 0 12px;
 }
 
 .funding-method-tabs button {
-  color: #737991;
+  color: var(--settlement-muted);
   flex: 1;
   font-size: 11px;
   min-height: 38px;
 }
 
 .funding-method-tabs button.active {
-  background: #fff;
+  background: var(--settlement-surface);
   box-shadow: 0 2px 8px rgba(17, 21, 40, 0.08);
-  color: #111528;
+  color: var(--settlement-foreground);
 }
 
 .funding-amount-box {
   align-items: center;
-  background: #fff;
-  border: 1px solid rgba(17, 21, 40, 0.09);
+  background: color-mix(in srgb, var(--settlement-surface) 92%, #ffffff);
+  border: 1px solid var(--settlement-line);
   border-radius: 15px;
   display: flex;
   gap: 20px;
@@ -3566,9 +3582,11 @@ button:disabled,
 }
 
 .receipt-card {
-  background: #f8f9fc;
+  background: var(--settlement-surface);
+  border: 1px solid var(--settlement-line);
   border-radius: 22px;
-  color: #101424;
+  box-shadow: var(--settlement-shadow);
+  color: var(--settlement-foreground);
   padding: 34px;
   text-align: center;
 }
@@ -3576,12 +3594,12 @@ button:disabled,
 .receipt-check {
   background: rgba(32, 201, 151, 0.1);
   border-color: rgba(32, 201, 151, 0.22);
-  color: #168863;
+  color: var(--settlement-success);
   margin: 0 auto;
 }
 
 .receipt-kicker {
-  color: #6e7488;
+  color: var(--settlement-muted);
   display: block;
   font-size: 9px;
   font-weight: 700;
@@ -3597,13 +3615,13 @@ button:disabled,
 }
 
 .receipt-card > p {
-  color: #747a8e;
+  color: var(--settlement-muted);
   font-size: 11px;
   margin: 0;
 }
 
 .receipt-rule {
-  border-top: 1px dashed rgba(16, 20, 36, 0.18);
+  border-top: 1px dashed var(--settlement-line);
   margin: 26px 0;
 }
 
@@ -3621,7 +3639,7 @@ button:disabled,
 }
 
 .receipt-details dt {
-  color: #7b8193;
+  color: var(--settlement-muted);
   font-size: 9px;
   text-transform: uppercase;
 }
@@ -3641,7 +3659,7 @@ button:disabled,
 }
 
 .receipt-hash {
-  background: rgba(16, 20, 36, 0.035);
+  background: color-mix(in srgb, var(--settlement-surface) 90%, #dce3f4);
   border-radius: 12px;
   display: grid;
   gap: 8px;
@@ -3651,7 +3669,7 @@ button:disabled,
 }
 
 .receipt-hash span {
-  color: #7b8193;
+  color: var(--settlement-muted);
   font-size: 9px;
 }
 
@@ -3666,7 +3684,7 @@ button:disabled,
   align-items: center;
   background: transparent;
   border: 0;
-  color: #4754af;
+  color: var(--accent);
   display: flex;
   font-size: 9px;
   gap: 5px;
@@ -3675,7 +3693,7 @@ button:disabled,
 }
 
 .receipt-checklist {
-  background: rgba(16, 20, 36, 0.035);
+  background: color-mix(in srgb, var(--settlement-surface) 90%, #dce3f4);
   border-radius: 12px;
   display: grid;
   gap: 9px;
@@ -3685,7 +3703,7 @@ button:disabled,
 }
 
 .receipt-checklist > span {
-  color: #7b8193;
+  color: var(--settlement-muted);
   font-size: 9px;
 }
 
@@ -3699,7 +3717,7 @@ button:disabled,
 
 .receipt-checklist li {
   align-items: flex-start;
-  color: #3c4359;
+  color: var(--settlement-foreground);
   display: flex;
   font-size: 9px;
   gap: 7px;
@@ -3707,7 +3725,7 @@ button:disabled,
 }
 
 .receipt-checklist svg {
-  color: #168863;
+  color: var(--settlement-success);
   flex: 0 0 auto;
   margin-top: 1px;
 }
@@ -3731,12 +3749,16 @@ button:disabled,
 }
 
 .receipt-actions .button-quiet {
-  border-color: rgba(16, 20, 36, 0.12);
+  border-color: var(--settlement-line);
 }
 
 .receipt-actions .button-primary {
-  background: #101424;
+  background: var(--settlement-action);
   color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }
 
 .activity-filters {
