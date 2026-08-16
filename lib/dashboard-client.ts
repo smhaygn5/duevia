@@ -5,6 +5,10 @@ import {
 } from "@/lib/agreements/client";
 import { computeDashboardSummary } from "@/lib/dashboard";
 import { deadlineRisks, type DeadlineRisk } from "@/lib/agreements/deadline-risk";
+import {
+  settlementForecast,
+  type SettlementForecast,
+} from "@/lib/agreements/settlement-forecast";
 
 export type DashboardAgreement = {
   public_ref: string;
@@ -37,6 +41,7 @@ export type DashboardPayload = {
   agreements: DashboardAgreement[];
   activities: DashboardActivity[];
   deadlineRisks: DeadlineRisk[];
+  settlementForecast: SettlementForecast[];
   updatedAt: number;
 };
 
@@ -129,6 +134,22 @@ async function requestVerifiedDashboard(): Promise<DashboardPayload> {
       })),
     ),
   );
+  const forecast = settlementForecast(
+    payloads.flatMap((payload) =>
+      payload.milestones.map((milestone) => ({
+        agreementRef: payload.agreement.public_ref,
+        agreementTitle: payload.agreement.title,
+        milestoneTitle: milestone.title,
+        state: milestone.state,
+        amountMinor: milestone.amount_minor,
+        dueAt: milestone.due_at,
+        reviewWindowSeconds: milestone.review_window_seconds,
+        submittedAt: payload.submissions.find(
+          (submission) => submission.milestone_position === milestone.position,
+        )?.submitted_at,
+      })),
+    ),
+  );
 
   return {
     source: "arc-verified",
@@ -139,6 +160,7 @@ async function requestVerifiedDashboard(): Promise<DashboardPayload> {
     })),
     activities: activities.slice(0, 25),
     deadlineRisks: risks.slice(0, 8),
+    settlementForecast: forecast.slice(0, 5),
     updatedAt: Math.max(
       0,
       ...payloads.map((payload) => payload.agreement.updated_at),
