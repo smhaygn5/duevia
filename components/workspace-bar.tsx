@@ -16,6 +16,7 @@ function workspaceLocation(pathname: string) {
   if (pathname.endsWith("/recovery")) return "Recovery";
   if (pathname.startsWith("/app/agreements/")) return "Agreement";
   if (pathname.startsWith("/app/activity")) return "Activity";
+  if (pathname.startsWith("/app/actions")) return "Action Center";
   if (pathname === "/app/receipts") return "Receipts";
   if (pathname.startsWith("/app/settings")) return "Settings";
   if (pathname.startsWith("/app/receipts")) return "Receipt";
