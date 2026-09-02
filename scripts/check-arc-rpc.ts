@@ -27,13 +27,21 @@ async function readChainId(url: string) {
 
     assert.equal(response.ok, true, `${url} returned HTTP ${response.status}`);
     const payload = (await response.json()) as RpcResponse;
+    const rpcBusy =
+      payload.error?.message?.toLowerCase().includes("request limit") ||
+      payload.error?.message?.toLowerCase().includes("rate limit");
+    if (rpcBusy && attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 750));
+      continue;
+    }
+    if (rpcBusy) return null;
     assert.equal(payload.error, undefined, payload.error?.message);
     return Number.parseInt(payload.result ?? "", 16);
   }
   return null;
 }
 
-for (const [index, url] of ARC.rpcUrls.entries()) {
+for (const [index, url] of ARC.readRpcUrls.entries()) {
   const chainId = await readChainId(url);
   if (chainId === null) {
     assert.notEqual(index, 0, "The primary Arc RPC is rate-limited");

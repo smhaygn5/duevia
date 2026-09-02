@@ -84,6 +84,16 @@ export function SettingsForm() {
               <ShieldCheck size={17} />
               Sign-in proves wallet ownership. It cannot move funds.
             </div>
+            {wallet.authenticated && (
+              <button
+                className="button button-danger-quiet settings-signout"
+                type="button"
+                onClick={() => void wallet.signOut()}
+                disabled={wallet.busy}
+              >
+                {wallet.busy ? "Signing out…" : "Disconnect & sign out"}
+              </button>
+            )}
           </div>
         </section>
 

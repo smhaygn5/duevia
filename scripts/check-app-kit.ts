@@ -20,6 +20,23 @@ function findArc(operation: "bridge" | "unifiedBalance") {
 
 const bridge = findArc("bridge");
 const unifiedBalance = findArc("unifiedBalance");
+assert.equal(
+  typeof kit.unifiedBalance.getBalances,
+  "function",
+  "Unified Balance query is unavailable",
+);
+assert.equal(
+  typeof kit.unifiedBalance.estimateSpend,
+  "function",
+  "Unified Balance estimation is unavailable",
+);
+assert.equal(
+  typeof kit.unifiedBalance.spend,
+  "function",
+  "Unified Balance execution is unavailable",
+);
 
 console.log(`✓ Bridge: Arc Testnet (${bridge.chainId})`);
-console.log(`✓ Unified Balance: Arc Testnet (${unifiedBalance.chainId})`);
+console.log(
+  `✓ Unified Balance query + spend: Arc Testnet (${unifiedBalance.chainId})`,
+);

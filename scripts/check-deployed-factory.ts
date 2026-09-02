@@ -5,7 +5,9 @@ import { ARC, ARC_CONTRACTS, arcTestnet } from "../lib/arc/config";
 const client = createPublicClient({
   chain: arcTestnet,
   transport: fallback(
-    ARC.rpcUrls.map((url) => http(url, { retryCount: 1, timeout: 8_000 })),
+    ARC.readRpcUrls.map((url) =>
+      http(url, { retryCount: 2, timeout: 8_000 }),
+    ),
   ),
 });
 

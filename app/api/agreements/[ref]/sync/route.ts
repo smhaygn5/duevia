@@ -11,6 +11,12 @@ import { z } from "zod";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import { getWalletSession } from "@/lib/auth/server";
 import {
+  agreementOnchainRef,
+  agreementRecoveryCandidates,
+  milestoneOnchainRef,
+} from "@/lib/agreements/onchain-proof";
+import { withArcRpcRetry } from "@/lib/arc/rpc-retry";
+import {
   createDueviaPublicClient,
   dueviaEscrowAbi,
   dueviaFactoryAbi,
@@ -22,6 +28,11 @@ export const dynamic = "force-dynamic";
 const syncSchema = z.object({
   txHash: z.string().refine(isHash, "Invalid Arc transaction hash"),
   reviewNote: z.string().trim().min(10).max(2_000).optional(),
+  approvalChecklist: z
+    .array(z.string().trim().min(3).max(220))
+    .min(1)
+    .max(12)
+    .optional(),
   submission: z
     .object({
       id: z.string().uuid(),
@@ -35,6 +46,7 @@ type AgreementRow = {
   id: string;
   public_ref: string;
   agreement_hash: string;
+  version: number;
   contract_address: string | null;
   client_address: string;
   provider_address: string;
@@ -93,6 +105,7 @@ export async function POST(
           agreements.id,
           agreements.public_ref,
           agreements.agreement_hash,
+          agreements.version,
           agreements.contract_address,
           agreements.total_amount_minor,
           client_wallet.address AS client_address,
@@ -138,10 +151,12 @@ export async function POST(
     }
 
     const publicClient = createDueviaPublicClient();
-    const [receipt, transaction] = await Promise.all([
+    const receipt = await withArcRpcRetry(() =>
       publicClient.getTransactionReceipt({ hash: input.txHash as Hex }),
+    );
+    const transaction = await withArcRpcRetry(() =>
       publicClient.getTransaction({ hash: input.txHash as Hex }),
-    ]);
+    );
     if (receipt.status !== "success") {
       return NextResponse.json(
         { error: "transaction_reverted", message: "The Arc transaction reverted." },
@@ -158,7 +173,12 @@ export async function POST(
       );
     }
     const now = Date.now();
-    const expectedAgreementRef = `0x${agreement.agreement_hash}` as Hex;
+    let proofVersion = agreement.version;
+    let expectedAgreementRef = agreementOnchainRef({
+      version: agreement.version,
+      publicRef: agreement.public_ref,
+      agreementHash: agreement.agreement_hash,
+    });
 
     if (!agreement.contract_address) {
       const factoryAddress = getDueviaFactoryAddress();
@@ -182,6 +202,19 @@ export async function POST(
         provider: Address;
         totalAmount: bigint;
       };
+      const matchingProof = agreementRecoveryCandidates({
+        version: agreement.version,
+        publicRef: agreement.public_ref,
+        agreementHash: agreement.agreement_hash,
+      }).find(
+        (candidate) =>
+          candidate.agreementRef.toLowerCase() ===
+          args.agreementRef.toLowerCase(),
+      );
+      if (matchingProof) {
+        proofVersion = matchingProof.version;
+        expectedAgreementRef = matchingProof.agreementRef;
+      }
       if (
         args.agreementRef.toLowerCase() !== expectedAgreementRef.toLowerCase() ||
         !sameAddress(args.client, agreement.client_address) ||
@@ -209,26 +242,35 @@ export async function POST(
           review_window_seconds: number;
           revision_limit: number;
         }>();
-      const [count, gracePeriod, ...onchainMilestones] = await Promise.all([
+      const count = await withArcRpcRetry(() =>
         publicClient.readContract({
           address: args.escrow,
           abi: dueviaEscrowAbi,
           functionName: "milestoneCount",
         }),
+      );
+      const gracePeriod = await withArcRpcRetry(() =>
         publicClient.readContract({
           address: args.escrow,
           abi: dueviaEscrowAbi,
           functionName: "nonDeliveryGracePeriod",
         }),
-        ...milestones.results.map((_, index) =>
-          publicClient.readContract({
-            address: args.escrow,
-            abi: dueviaEscrowAbi,
-            functionName: "milestones",
-            args: [BigInt(index)],
-          }),
-        ),
-      ]);
+      );
+      const onchainMilestones: Array<
+        readonly [Hex, bigint, bigint, number, number, number, bigint, number]
+      > = [];
+      for (const [index] of milestones.results.entries()) {
+        onchainMilestones.push(
+          await withArcRpcRetry(() =>
+            publicClient.readContract({
+              address: args.escrow,
+              abi: dueviaEscrowAbi,
+              functionName: "getMilestone",
+              args: [BigInt(index)],
+            }),
+          ),
+        );
+      }
       const termsMatch =
         count === BigInt(milestones.results.length) &&
         gracePeriod === 2n * 24n * 60n * 60n &&
@@ -238,7 +280,11 @@ export async function POST(
           const [ref, amount, dueDate, reviewWindow, revisionLimit] = onchain;
           return (
             ref.toLowerCase() ===
-              `0x${milestone.milestone_hash}`.toLowerCase() &&
+              milestoneOnchainRef({
+                version: proofVersion,
+                publicRef: agreement.public_ref,
+                milestoneHash: milestone.milestone_hash,
+              }).toLowerCase() &&
             amount === BigInt(milestone.amount_minor) &&
             dueDate === BigInt(Math.floor(milestone.due_at / 1_000)) &&
             reviewWindow === milestone.review_window_seconds &&
@@ -257,10 +303,11 @@ export async function POST(
       await db.batch([
         db
           .prepare(
-            `UPDATE agreements SET contract_address = ?, updated_at = ?
+            `UPDATE agreements
+             SET contract_address = ?, version = ?, updated_at = ?
              WHERE id = ? AND contract_address IS NULL`,
           )
-          .bind(args.escrow, now, agreement.id),
+          .bind(args.escrow, proofVersion, now, agreement.id),
         db
           .prepare(
             `INSERT INTO activities (
@@ -432,6 +479,12 @@ export async function POST(
           reviewNote: input.reviewNote ?? null,
         };
       } else {
+        if (!input.approvalChecklist?.length) {
+          return NextResponse.json(
+            { error: "Approval checklist is required before settlement release." },
+            { status: 422 },
+          );
+        }
         activityType = "milestone.released";
         updates.push(
           db
@@ -456,7 +509,11 @@ export async function POST(
               .bind(now, agreement.id),
           );
         }
-        detail = { ...detail, amountMinor: String(args.amount) };
+        detail = {
+          ...detail,
+          amountMinor: String(args.amount),
+          approvalChecklist: input.approvalChecklist ?? [],
+        };
       }
     } else if (event.eventName === "CancellationApproval") {
       activityType = "agreement.cancellation_approval";

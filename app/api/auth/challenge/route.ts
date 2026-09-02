@@ -7,6 +7,7 @@ import {
   randomToken,
   resolveAuthOrigin,
 } from "@/lib/auth/server";
+import { consumeRequestLimit } from "@/lib/security/rate-limit";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 
 const requestSchema = z.object({
@@ -16,6 +17,27 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const requestLimit = await consumeRequestLimit(request, {
+      scope: "auth-challenge",
+      limit: 12,
+      windowMs: 60_000,
+    });
+    if (!requestLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "rate_limited",
+          message: "Too many wallet sign-in requests. Wait a moment and try again.",
+        },
+        {
+          status: 429,
+          headers: {
+            "Cache-Control": "no-store",
+            "Retry-After": String(requestLimit.retryAfterSeconds),
+          },
+        },
+      );
+    }
+
     const input = requestSchema.parse(await request.json());
     if (input.chainId !== ARC.chainId) {
       return NextResponse.json(

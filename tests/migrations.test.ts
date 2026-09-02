@@ -83,3 +83,123 @@ test("phase four migration preserves legacy agreements and accepts provider-crea
   assert.deepEqual(tables, ["auth_challenges", "wallet_sessions"]);
   db.close();
 });
+
+test("unique escrow reference migration upgrades only agreements without deployments", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec(migration("0000_mighty_marvel_apes.sql"));
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO wallets (
+      id, address, chain_id, display_name, last_signed_in_at, created_at, updated_at
+    ) VALUES (?, ?, ?, NULL, NULL, ?, ?)`,
+  ).run("wallet-migration", `0x${"22".repeat(20)}`, 5_042_002, now, now);
+  const insert = db.prepare(
+    `INSERT INTO agreements (
+      id, public_ref, contract_address, agreement_hash, title,
+      client_wallet_id, provider_wallet_id, provider_invite_hash, currency,
+      total_amount_minor, state, chain_id, funded_tx_hash, version,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, 'USDC', ?, 'awaiting_funding',
+      ?, NULL, 1, ?, ?)`,
+  );
+  insert.run(
+    "agreement-pending",
+    "DV-PENDING",
+    null,
+    "pending-hash",
+    "Pending deployment",
+    "wallet-migration",
+    "pending-invite",
+    "1000000",
+    5_042_002,
+    now,
+    now,
+  );
+  insert.run(
+    "agreement-deployed",
+    "DV-DEPLOYED",
+    `0x${"33".repeat(20)}`,
+    "deployed-hash",
+    "Existing deployment",
+    "wallet-migration",
+    "deployed-invite",
+    "1000000",
+    5_042_002,
+    now,
+    now,
+  );
+
+  db.exec(migration("0003_unique_escrow_refs.sql"));
+
+  const rows = db
+    .prepare("SELECT id, version FROM agreements ORDER BY id")
+    .all()
+    .map((row) => ({ id: String(row.id), version: Number(row.version) }));
+  assert.deepEqual(rows, [
+    { id: "agreement-deployed", version: 1 },
+    { id: "agreement-pending", version: 2 },
+  ]);
+  db.close();
+});
+
+test("dispute migration stores signed events against an agreement", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  db.exec(`
+    CREATE TABLE wallets (id TEXT PRIMARY KEY NOT NULL);
+    CREATE TABLE agreements (id TEXT PRIMARY KEY NOT NULL);
+    CREATE TABLE milestones (id TEXT PRIMARY KEY NOT NULL);
+  `);
+  db.exec(migration("0005_dispute_resolution.sql"));
+  db.prepare("INSERT INTO wallets (id) VALUES (?)").run("wallet-client");
+  db.prepare("INSERT INTO agreements (id) VALUES (?)").run("agreement-1");
+  db.prepare(
+    `INSERT INTO disputes (
+      id, agreement_id, milestone_id, opened_by_wallet_id, category, status,
+      proposed_resolution, proposed_by_wallet_id, proposal_event_id,
+      accepted_by_wallet_id, opened_at, resolved_at, updated_at
+    ) VALUES (?, ?, NULL, ?, 'delivery', 'open', NULL, NULL, NULL, NULL, ?, NULL, ?)`,
+  ).run("dispute-1", "agreement-1", "wallet-client", 100, 100);
+  db.prepare(
+    `INSERT INTO dispute_events (
+      id, dispute_id, actor_wallet_id, kind, statement, evidence_url,
+      evidence_sha256, resolution_type, signature, occurred_at
+    ) VALUES (?, ?, ?, 'opened', ?, NULL, NULL, NULL, ?, ?)`,
+  ).run("event-1", "dispute-1", "wallet-client", "Delivery was incomplete.", "0x1234", 100);
+
+  const event = db.prepare("SELECT kind, signature FROM dispute_events WHERE dispute_id = ?").get("dispute-1") as Record<string, unknown>;
+  assert.equal(event.kind, "opened");
+  assert.equal(event.signature, "0x1234");
+  assert.throws(() => db.prepare(
+    `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, signature, occurred_at)
+     VALUES ('event-2', 'dispute-1', 'wallet-client', 'evidence', 'Duplicate', '0x1234', 101)`,
+  ).run(), /UNIQUE/);
+  assert.throws(() => db.prepare(
+    `INSERT INTO disputes (
+      id, agreement_id, opened_by_wallet_id, category, status, opened_at, updated_at
+    ) VALUES ('dispute-2', 'agreement-1', 'wallet-client', 'scope', 'open', 101, 101)`,
+  ).run(), /UNIQUE/);
+  db.close();
+});
+
+test("change order migration restores the production workspace table", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  db.exec(`
+    CREATE TABLE wallets (id TEXT PRIMARY KEY NOT NULL);
+    CREATE TABLE agreements (id TEXT PRIMARY KEY NOT NULL);
+  `);
+  db.exec(migration("0006_change_orders.sql"));
+  db.prepare("INSERT INTO wallets (id) VALUES (?)").run("wallet-client");
+  db.prepare("INSERT INTO agreements (id) VALUES (?)").run("agreement-1");
+  db.prepare(
+    `INSERT INTO change_orders (
+      id, agreement_id, proposer_wallet_id, title, detail, scope,
+      status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+  ).run("change-1", "agreement-1", "wallet-client", "Extend review", "Add two review days.", "timeline", 100, 100);
+  const order = db.prepare("SELECT scope, status FROM change_orders WHERE id = ?").get("change-1") as Record<string, unknown>;
+  assert.equal(order.scope, "timeline");
+  assert.equal(order.status, "pending");
+  db.close();
+});

@@ -4,6 +4,11 @@ import {
   type AgreementPayload,
 } from "@/lib/agreements/client";
 import { computeDashboardSummary } from "@/lib/dashboard";
+import { deadlineRisks, type DeadlineRisk } from "@/lib/agreements/deadline-risk";
+import {
+  settlementForecast,
+  type SettlementForecast,
+} from "@/lib/agreements/settlement-forecast";
 
 export type DashboardAgreement = {
   public_ref: string;
@@ -35,6 +40,8 @@ export type DashboardPayload = {
   };
   agreements: DashboardAgreement[];
   activities: DashboardActivity[];
+  deadlineRisks: DeadlineRisk[];
+  settlementForecast: SettlementForecast[];
   updatedAt: number;
 };
 
@@ -95,8 +102,18 @@ export function summarizeAgreementPayloads(
   );
 }
 
-export async function loadVerifiedDashboard(): Promise<DashboardPayload> {
-  const response = await fetch("/api/agreements", { cache: "no-store" });
+let dashboardCache:
+  | {
+      expiresAt: number;
+      promise: Promise<DashboardPayload>;
+    }
+  | undefined;
+
+async function requestVerifiedDashboard(): Promise<DashboardPayload> {
+  const response = await fetch("/api/agreements", {
+    cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
+  });
   const list = (await response.json()) as AgreementListResponse;
   if (!response.ok || !list.agreements) {
     throw new Error(list.message ?? "Unable to load the verified workspace.");
@@ -106,6 +123,33 @@ export async function loadVerifiedDashboard(): Promise<DashboardPayload> {
     list.agreements.map((agreement) => loadAgreement(agreement.public_ref)),
   );
   const activities = flattenActivities(payloads);
+  const risks = deadlineRisks(
+    payloads.flatMap((payload) =>
+      payload.milestones.map((milestone) => ({
+        dueAt: milestone.due_at,
+        state: milestone.state,
+        title: milestone.title,
+        agreementRef: payload.agreement.public_ref,
+        currentRole: payload.agreement.current_role,
+      })),
+    ),
+  );
+  const forecast = settlementForecast(
+    payloads.flatMap((payload) =>
+      payload.milestones.map((milestone) => ({
+        agreementRef: payload.agreement.public_ref,
+        agreementTitle: payload.agreement.title,
+        milestoneTitle: milestone.title,
+        state: milestone.state,
+        amountMinor: milestone.amount_minor,
+        dueAt: milestone.due_at,
+        reviewWindowSeconds: milestone.review_window_seconds,
+        submittedAt: payload.submissions.find(
+          (submission) => submission.milestone_position === milestone.position,
+        )?.submitted_at,
+      })),
+    ),
+  );
 
   return {
     source: "arc-verified",
@@ -115,10 +159,28 @@ export async function loadVerifiedDashboard(): Promise<DashboardPayload> {
       updated_at: agreement.updated_at ?? 0,
     })),
     activities: activities.slice(0, 25),
+    deadlineRisks: risks.slice(0, 8),
+    settlementForecast: forecast.slice(0, 5),
     updatedAt: Math.max(
       0,
       ...payloads.map((payload) => payload.agreement.updated_at),
       ...activities.map((activity) => activity.occurred_at),
     ),
   };
+}
+
+export function loadVerifiedDashboard(): Promise<DashboardPayload> {
+  if (dashboardCache && dashboardCache.expiresAt > Date.now()) {
+    return dashboardCache.promise;
+  }
+
+  const promise = requestVerifiedDashboard().catch((error) => {
+    if (dashboardCache?.promise === promise) dashboardCache = undefined;
+    throw error;
+  });
+  dashboardCache = {
+    expiresAt: Date.now() + 15_000,
+    promise,
+  };
+  return promise;
 }

@@ -38,6 +38,28 @@ export function ensureRuntimeSchema() {
 
   schemaReady = (async () => {
     const db = getRawDb();
+    const existing = await db
+      .prepare(
+        `SELECT COUNT(*) AS table_count
+         FROM sqlite_master
+         WHERE type = 'table'
+           AND name IN (
+             'wallets',
+             'auth_challenges',
+             'wallet_sessions',
+             'agreements',
+             'milestones',
+             'submissions',
+             'deliverables',
+             'activities',
+             'api_rate_limits'
+           )`,
+      )
+      .first<{ table_count: number }>();
+    if (Number(existing?.table_count ?? 0) === 9) {
+      return;
+    }
+
     const statements = [
       `CREATE TABLE IF NOT EXISTS wallets (
         id TEXT PRIMARY KEY NOT NULL,
@@ -169,6 +191,33 @@ export function ensureRuntimeSchema() {
         ON activities (agreement_id, occurred_at)`,
       `CREATE UNIQUE INDEX IF NOT EXISTS activity_tx_hash_unique
         ON activities (tx_hash)`,
+      `CREATE TABLE IF NOT EXISTS change_orders (
+        id TEXT PRIMARY KEY NOT NULL,
+        agreement_id TEXT NOT NULL REFERENCES agreements(id) ON DELETE CASCADE,
+        proposer_wallet_id TEXT NOT NULL REFERENCES wallets(id),
+        accepted_by_wallet_id TEXT REFERENCES wallets(id),
+        title TEXT NOT NULL,
+        detail TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        status TEXT DEFAULT 'pending' NOT NULL,
+        created_at INTEGER NOT NULL,
+        accepted_at INTEGER,
+        updated_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS change_order_agreement_time_idx
+        ON change_orders (agreement_id, created_at)`,
+      `CREATE TABLE IF NOT EXISTS api_rate_limits (
+        key TEXT PRIMARY KEY NOT NULL,
+        window_started_at INTEGER NOT NULL,
+        request_count INTEGER DEFAULT 1 NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS api_rate_limit_window_idx
+        ON api_rate_limits (window_started_at)`,
+      `UPDATE agreements
+        SET version = 2
+        WHERE version = 1
+          AND contract_address IS NULL`,
     ];
 
     await db.batch(statements.map((statement) => db.prepare(statement)));

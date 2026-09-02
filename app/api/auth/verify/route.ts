@@ -8,6 +8,7 @@ import {
   SESSION_DURATION_MS,
   sha256,
 } from "@/lib/auth/server";
+import { consumeRequestLimit } from "@/lib/security/rate-limit";
 import { verifyWalletSignature } from "@/lib/auth/verify-wallet-signature";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 
@@ -19,6 +20,27 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const requestLimit = await consumeRequestLimit(request, {
+      scope: "auth-verify",
+      limit: 16,
+      windowMs: 60_000,
+    });
+    if (!requestLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "rate_limited",
+          message: "Too many signature checks. Wait a moment and try again.",
+        },
+        {
+          status: 429,
+          headers: {
+            "Cache-Control": "no-store",
+            "Retry-After": String(requestLimit.retryAfterSeconds),
+          },
+        },
+      );
+    }
+
     const input = requestSchema.parse(await request.json());
     await ensureRuntimeSchema();
     const db = getRawDb();
@@ -81,7 +103,9 @@ export async function POST(request: NextRequest) {
     }
 
     const proposedWalletId = crypto.randomUUID();
-    await db
+    const sessionToken = randomToken(32);
+    const sessionTokenHash = sha256(sessionToken);
+    const wallet = await db
       .prepare(
         `INSERT INTO wallets (
           id, address, chain_id, display_name, last_signed_in_at,
@@ -89,7 +113,8 @@ export async function POST(request: NextRequest) {
         ) VALUES (?, ?, ?, NULL, ?, ?, ?)
         ON CONFLICT(chain_id, address) DO UPDATE SET
           last_signed_in_at = excluded.last_signed_in_at,
-          updated_at = excluded.updated_at`,
+          updated_at = excluded.updated_at
+        RETURNING id`,
       )
       .bind(
         proposedWalletId,
@@ -99,17 +124,9 @@ export async function POST(request: NextRequest) {
         now,
         now,
       )
-      .run();
-
-    const wallet = await db
-      .prepare(
-        `SELECT id FROM wallets WHERE chain_id = ? AND address = ? LIMIT 1`,
-      )
-      .bind(ARC.chainId, address.toLowerCase())
       .first<{ id: string }>();
     if (!wallet) throw new Error("Wallet profile could not be created.");
 
-    const sessionToken = randomToken(32);
     const sessionExpiresAt = now + SESSION_DURATION_MS;
     await db
       .prepare(
@@ -121,7 +138,7 @@ export async function POST(request: NextRequest) {
       .bind(
         crypto.randomUUID(),
         wallet.id,
-        await sha256(sessionToken),
+        await sessionTokenHash,
         sessionExpiresAt,
         now,
         now,

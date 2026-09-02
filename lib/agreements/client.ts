@@ -1,5 +1,9 @@
 import { getAddress, type Address, type Hex } from "viem";
 import type { EscrowDeploymentConfig } from "@/lib/contracts/duevia";
+import {
+  agreementOnchainRef,
+  milestoneOnchainRef,
+} from "@/lib/agreements/onchain-proof";
 
 export type AgreementRecord = {
   public_ref: string;
@@ -17,6 +21,7 @@ export type AgreementRecord = {
   state: string;
   chain_id: number;
   funded_tx_hash: Hex | null;
+  version: number;
   created_at: number;
   updated_at: number;
 };
@@ -68,9 +73,22 @@ export type AgreementPayload = {
   }>;
 };
 
-export async function loadAgreement(publicRef: string): Promise<AgreementPayload> {
+const agreementCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    promise: Promise<AgreementPayload>;
+  }
+>();
+
+export function invalidateAgreementCache(publicRef: string) {
+  agreementCache.delete(publicRef.toUpperCase());
+}
+
+async function requestAgreement(publicRef: string): Promise<AgreementPayload> {
   const response = await fetch(`/api/agreements/${publicRef}`, {
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
   });
   const payload = (await response.json()) as AgreementPayload & {
     message?: string;
@@ -79,6 +97,28 @@ export async function loadAgreement(publicRef: string): Promise<AgreementPayload
     throw new Error(payload.message ?? "Agreement could not be loaded.");
   }
   return payload;
+}
+
+export function loadAgreement(
+  publicRef: string,
+  options: { fresh?: boolean } = {},
+): Promise<AgreementPayload> {
+  const key = publicRef.toUpperCase();
+  const existing = agreementCache.get(key);
+  if (!options.fresh && existing && existing.expiresAt > Date.now()) {
+    return existing.promise;
+  }
+
+  const promise = requestAgreement(publicRef).catch((error) => {
+    const current = agreementCache.get(key);
+    if (current?.promise === promise) agreementCache.delete(key);
+    throw error;
+  });
+  agreementCache.set(key, {
+    expiresAt: Date.now() + 15_000,
+    promise,
+  });
+  return promise;
 }
 
 export function getCurrentMilestone(milestones: MilestoneRecord[]) {
@@ -91,14 +131,6 @@ export function getCurrentMilestone(milestones: MilestoneRecord[]) {
   );
 }
 
-function proof(value: string): Hex {
-  const normalized = value.startsWith("0x") ? value : `0x${value}`;
-  if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
-    throw new Error("A stored agreement proof is invalid.");
-  }
-  return normalized as Hex;
-}
-
 export function escrowConfigFromAgreement(
   payload: AgreementPayload,
 ): EscrowDeploymentConfig {
@@ -109,8 +141,18 @@ export function escrowConfigFromAgreement(
   return {
     client: getAddress(agreement.client_address),
     provider: getAddress(agreement.provider_address),
-    agreementRef: proof(agreement.agreement_hash),
-    milestoneRefs: milestones.map((milestone) => proof(milestone.milestone_hash)),
+    agreementRef: agreementOnchainRef({
+      version: agreement.version,
+      publicRef: agreement.public_ref,
+      agreementHash: agreement.agreement_hash,
+    }),
+    milestoneRefs: milestones.map((milestone) =>
+      milestoneOnchainRef({
+        version: agreement.version,
+        publicRef: agreement.public_ref,
+        milestoneHash: milestone.milestone_hash,
+      }),
+    ),
     amounts: milestones.map((milestone) => BigInt(milestone.amount_minor)),
     dueDates: milestones.map((milestone) =>
       BigInt(Math.floor(milestone.due_at / 1_000)),

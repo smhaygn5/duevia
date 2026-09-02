@@ -1,6 +1,6 @@
 # Duevia Phase 5 verification
 
-Verification date: 2026-07-27
+Verification date: 2026-07-29
 
 ## Automated results
 
@@ -8,7 +8,7 @@ Verification date: 2026-07-27
 | --- | --- |
 | TypeScript typecheck | Passed |
 | ESLint | Passed |
-| Unit tests | 17 / 17 passed |
+| Unit tests | 59 / 59 passed |
 | Production build | Passed |
 | Rendered page tests | 4 / 4 passed |
 | Solidity tests | 9 / 9 passed |
@@ -17,6 +17,7 @@ Verification date: 2026-07-27
 | Vercel production build | Passed |
 | Public Vercel landing page | HTTP 200 |
 | Vercel-to-Duevia API bridge | Confirmed |
+| Pull-request verification workflow | Added |
 
 ## Security checks
 
@@ -38,6 +39,13 @@ Verification date: 2026-07-27
   MetaMask and OKX first.
 - Contract and Circle actions use the provider explicitly selected by the user,
   rather than whichever extension owns `window.ethereum`.
+- Wallet challenge and signature verification routes use durable D1-backed
+  request limits with standard 429 retry guidance.
+- Application responses deny framing and object embedding, prevent MIME
+  sniffing, restrict referrers, and disable unused browser permissions.
+- Gateway Unified Balance funding verifies the available Gateway total,
+  estimates fees, mints on Arc, and preserves a resumable mint after a
+  committed transfer.
 
 ## Demo integrity
 

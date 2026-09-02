@@ -23,6 +23,24 @@ function messageCandidates(message: string): SignableMessage[] {
   return [message, stringToHex(message)];
 }
 
+async function verifyOnchainWithDeadline(
+  verifyOnchain: OnchainVerifier,
+  input: Parameters<OnchainVerifier>[0],
+) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<boolean>((resolve) => {
+    timeoutId = setTimeout(() => resolve(false), 8_000);
+  });
+  try {
+    return await Promise.race([
+      verifyOnchain(input).catch(() => false),
+      timeout,
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export async function verifyWalletSignature(
   input: VerificationInput,
   verifyOnchain: OnchainVerifier = (parameters) =>
@@ -46,21 +64,14 @@ export async function verifyWalletSignature(
     }
   }
 
-  for (const message of candidates) {
-    try {
-      if (
-        await verifyOnchain({
-          address: input.address,
-          message,
-          signature: input.signature,
-        })
-      ) {
-        return true;
-      }
-    } catch {
-      // A failed RPC or contract check must not turn an invalid signature valid.
-    }
-  }
-
-  return false;
+  const onchainResults = await Promise.all(
+    candidates.map((message) =>
+      verifyOnchainWithDeadline(verifyOnchain, {
+        address: input.address,
+        message,
+        signature: input.signature,
+      }),
+    ),
+  );
+  return onchainResults.some(Boolean);
 }

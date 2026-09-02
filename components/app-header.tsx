@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { WalletButton } from "./wallet-button";
 
 export function AppHeader({
   eyebrow,
@@ -19,10 +18,7 @@ export function AppHeader({
         <h1>{title}</h1>
         {description && <span>{description}</span>}
       </div>
-      <div className="product-header-actions">
-        {action}
-        <WalletButton />
-      </div>
+      {action && <div className="product-header-actions">{action}</div>}
     </header>
   );
 }

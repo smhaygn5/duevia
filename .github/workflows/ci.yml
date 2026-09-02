@@ -1,0 +1,87 @@
+name: Duevia verification
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: duevia-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    name: Application
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Check types
+        run: npm run typecheck
+
+      - name: Check code quality
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Verify Circle App Kit support
+        run: npm run appkit:check
+
+      - name: Verify the local wallet-owned flow
+        run: npm run flow:check
+
+      - name: Build the Vercel application
+        run: npm run build:vercel
+
+      - name: Build the Cloudflare application
+        run: npm run build
+
+      - name: Verify rendered pages
+        run: npm run test:rendered
+
+  contracts:
+    name: Smart contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: npm
+          cache-dependency-path: contracts/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Check contract types
+        run: npm run typecheck
+
+      - name: Compile contracts
+        run: npm run build
+
+      - name: Run Solidity tests
+        run: npm run test -- --no-compile

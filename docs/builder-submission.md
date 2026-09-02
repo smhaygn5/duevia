@@ -35,7 +35,8 @@ activity trail.
 - D1 agreements, milestones, activities, and receipts
 - protected R2 deliverable uploads and downloads
 - ownerless escrow factory and isolated agreement escrows
-- direct Arc and Circle Bridge funding preparation
+- direct Arc, Circle Bridge, and Circle Gateway Unified Balance funding
+- resumable Bridge and Gateway mint recovery that prevents duplicate transfers
 - provider submission proofs
 - client revisions and milestone releases
 - cancellation and deadline recovery paths

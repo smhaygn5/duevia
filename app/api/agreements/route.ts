@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
             total_amount_minor, state, chain_id, funded_tx_hash, version,
             created_at, updated_at
           ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'USDC', ?,
-            'awaiting_funding', ?, NULL, 1, ?, ?)`,
+            'awaiting_funding', ?, NULL, 2, ?, ?)`,
         )
         .bind(
           agreementId,

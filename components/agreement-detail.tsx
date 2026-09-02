@@ -16,6 +16,9 @@ import { AppHeader } from "./app-header";
 import { StatusBadge } from "./status-badge";
 import { useWallet } from "./wallet-provider";
 import { demoAgreement } from "@/lib/demo-data";
+import { publicProofUrl } from "@/lib/agreements/public-proof";
+import { ChangeOrderPanel } from "./change-order-panel";
+import { DisputeResolutionRoom } from "./dispute-resolution-room";
 
 type DetailModel = {
   publicRef: string;
@@ -215,6 +218,13 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
     ["pending", "in_progress", "changes_requested"].includes(
       current?.status ?? "",
     );
+  const actionIcon = canFund ? (
+    <LockKeyhole size={22} />
+  ) : needsReview || canSubmit ? (
+    <FileText size={22} />
+  ) : (
+    <Clock3 size={22} />
+  );
 
   return (
     <>
@@ -331,15 +341,22 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
               ))}
             </div>
           </section>
+          {!isDemo && <ChangeOrderPanel agreementRef={detail.publicRef} />}
+          <DisputeResolutionRoom
+            agreementRef={detail.publicRef}
+            currentRole={detail.currentRole}
+            demo={isDemo}
+            milestones={detail.milestones.map(({ position, title }) => ({ position, title }))}
+          />
         </div>
 
         <aside className="action-panel">
-          <span className="action-label">Action required</span>
+          <div className="action-panel-kicker">
+            <span className="action-label">Action required</span>
+            <div className="action-icon">{actionIcon}</div>
+          </div>
           {canFund ? (
             <>
-              <div className="action-icon">
-                <LockKeyhole size={22} />
-              </div>
               <h2>Fund the agreement</h2>
               <p>
                 Lock {detail.total} USDC on Arc so the provider can begin the
@@ -355,9 +372,6 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
             </>
           ) : needsReview ? (
             <>
-              <div className="action-icon">
-                <FileText size={22} />
-              </div>
               <h2>Review milestone {current?.position}</h2>
               <p>
                 The provider submitted deliverables. Approval releases{" "}
@@ -373,9 +387,6 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
             </>
           ) : canSubmit ? (
             <>
-              <div className="action-icon">
-                <FileText size={22} />
-              </div>
               <h2>Prepare the delivery</h2>
               <p>
                 Upload files or add links, then submit the current milestone for
@@ -391,9 +402,6 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
             </>
           ) : (
             <>
-              <div className="action-icon">
-                <Clock3 size={22} />
-              </div>
               <h2>Waiting for the counterparty</h2>
               <p>
                 The next action belongs to the{" "}
@@ -423,6 +431,10 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
               Open explorer
               <ExternalLink size={13} />
             </a>
+            <Link className="public-proof-link" href={publicProofUrl(detail.publicRef)} target="_blank">
+              Public proof page
+              <ExternalLink size={13} />
+            </Link>
             <Link
               className="recovery-link"
               href={`/app/agreements/${detail.publicRef.toLowerCase()}/recovery`}

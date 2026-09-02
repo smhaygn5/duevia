@@ -5,6 +5,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import type {
   AgreementState,
   MilestoneState,
@@ -231,6 +232,82 @@ export const activities = sqliteTable(
   ],
 );
 
+export const changeOrders = sqliteTable(
+  "change_orders",
+  {
+    id: text("id").primaryKey(),
+    agreementId: text("agreement_id")
+      .notNull()
+      .references(() => agreements.id, { onDelete: "cascade" }),
+    proposerWalletId: text("proposer_wallet_id")
+      .notNull()
+      .references(() => wallets.id),
+    acceptedByWalletId: text("accepted_by_wallet_id").references(() => wallets.id),
+    title: text("title").notNull(),
+    detail: text("detail").notNull(),
+    scope: text("scope").notNull(),
+    status: text("status").notNull().default("pending"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    acceptedAt: integer("accepted_at", { mode: "timestamp_ms" }),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (table) => [index("change_order_agreement_time_idx").on(table.agreementId, table.createdAt)],
+);
+
+export const disputes = sqliteTable(
+  "disputes",
+  {
+    id: text("id").primaryKey(),
+    agreementId: text("agreement_id")
+      .notNull()
+      .references(() => agreements.id, { onDelete: "cascade" }),
+    milestoneId: text("milestone_id").references(() => milestones.id),
+    openedByWalletId: text("opened_by_wallet_id")
+      .notNull()
+      .references(() => wallets.id),
+    category: text("category").notNull(),
+    status: text("status").notNull().default("open"),
+    proposedResolution: text("proposed_resolution"),
+    proposedByWalletId: text("proposed_by_wallet_id").references(() => wallets.id),
+    proposalEventId: text("proposal_event_id"),
+    acceptedByWalletId: text("accepted_by_wallet_id").references(() => wallets.id),
+    openedAt: integer("opened_at").notNull(),
+    resolvedAt: integer("resolved_at"),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("dispute_agreement_time_idx").on(table.agreementId, table.openedAt),
+    index("dispute_agreement_status_idx").on(table.agreementId, table.status),
+    uniqueIndex("dispute_one_active_per_agreement")
+      .on(table.agreementId)
+      .where(sql`${table.status} != 'resolved'`),
+  ],
+);
+
+export const disputeEvents = sqliteTable(
+  "dispute_events",
+  {
+    id: text("id").primaryKey(),
+    disputeId: text("dispute_id")
+      .notNull()
+      .references(() => disputes.id, { onDelete: "cascade" }),
+    actorWalletId: text("actor_wallet_id")
+      .notNull()
+      .references(() => wallets.id),
+    kind: text("kind").notNull(),
+    statement: text("statement").notNull(),
+    evidenceUrl: text("evidence_url"),
+    evidenceSha256: text("evidence_sha256"),
+    resolutionType: text("resolution_type"),
+    signature: text("signature").notNull(),
+    occurredAt: integer("occurred_at").notNull(),
+  },
+  (table) => [
+    index("dispute_event_dispute_time_idx").on(table.disputeId, table.occurredAt),
+    uniqueIndex("dispute_event_signature_unique").on(table.signature),
+  ],
+);
+
 export const chainEvents = sqliteTable(
   "chain_events",
   {
@@ -271,4 +348,17 @@ export const idempotencyKeys = sqliteTable(
     ...timestamps,
   },
   (table) => [index("idempotency_expiry_idx").on(table.expiresAt)],
+);
+
+export const apiRateLimits = sqliteTable(
+  "api_rate_limits",
+  {
+    key: text("key").primaryKey(),
+    windowStartedAt: integer("window_started_at").notNull(),
+    requestCount: integer("request_count").notNull().default(1),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("api_rate_limit_window_idx").on(table.windowStartedAt),
+  ],
 );

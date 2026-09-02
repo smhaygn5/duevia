@@ -4,13 +4,18 @@ import { ARC, arcTestnet } from "./config";
 export function createArcPublicClient() {
   return createPublicClient({
     chain: arcTestnet,
+    pollingInterval: 1_000,
     transport: fallback(
-      ARC.rpcUrls.map((url) =>
+      ARC.readRpcUrls.map((url) =>
         http(url, {
           retryCount: 1,
-          timeout: 5_000,
+          timeout: 4_000,
         }),
       ),
+      {
+        retryCount: 1,
+        retryDelay: 100,
+      },
     ),
   });
 }

@@ -22,6 +22,34 @@
       "when": 1785009776319,
       "tag": "0002_phase-five",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1785146400000,
+      "tag": "0003_unique_escrow_refs",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1785326400000,
+      "tag": "0004_api_rate_limits",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1788354000000,
+      "tag": "0005_dispute_resolution",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788355000000,
+      "tag": "0006_change_orders",
+      "breakpoints": true
     }
   ]
 }

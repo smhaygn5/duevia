@@ -1,15 +1,20 @@
 "use client";
 
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
   FileCheck2,
+  Home,
   ShieldCheck,
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { demoAgreement } from "@/lib/demo-data";
+import { DueviaLogo } from "./duevia-logo";
+import { ThemeToggle } from "./theme-toggle";
 import { WalletButton } from "./wallet-button";
 import { useWallet } from "./wallet-provider";
 
@@ -59,6 +64,44 @@ const demoInvitation: InvitationData = {
   })),
 };
 
+function InvitationNavigation() {
+  const router = useRouter();
+
+  function goBack() {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push("/");
+  }
+
+  return (
+    <nav className="invite-nav" aria-label="Invitation navigation">
+      <div className="invite-nav-start">
+        <button className="invite-back" type="button" onClick={goBack}>
+          <ArrowLeft size={15} />
+          Back
+        </button>
+        <Link className="wordmark" href="/" aria-label="Duevia home">
+          <DueviaLogo compactOnMobile />
+        </Link>
+      </div>
+      <div className="invite-nav-actions">
+        <Link className="invite-workspace-link" href="/app">
+          <Home size={14} />
+          Workspace
+        </Link>
+        <span className="network-chip">
+          <i />
+          Arc Testnet
+        </span>
+        <ThemeToggle />
+        <WalletButton />
+      </div>
+    </nav>
+  );
+}
+
 export function InvitationView({ token }: { token: string }) {
   const wallet = useWallet();
   const isDemo = token === "demo";
@@ -72,7 +115,10 @@ export function InvitationView({ token }: { token: string }) {
 
   useEffect(() => {
     if (isDemo) return;
-    void fetch(`/api/invitations/${token}`, { cache: "no-store" })
+    void fetch(`/api/invitations/${token}`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    })
       .then(async (response) => {
         const payload = (await response.json()) as InvitationData & {
           message?: string;
@@ -106,6 +152,7 @@ export function InvitationView({ token }: { token: string }) {
     try {
       const response = await fetch(`/api/invitations/${token}`, {
         method: "POST",
+        signal: AbortSignal.timeout(15_000),
       });
       const payload = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(payload.message ?? "Unable to accept.");
@@ -121,87 +168,92 @@ export function InvitationView({ token }: { token: string }) {
     }
   }
 
-  if (loading) return <div className="invite-state">Loading invitation…</div>;
+  if (loading) {
+    return (
+      <main className="invite-page">
+        <InvitationNavigation />
+        <div className="invite-state">Loading invitation…</div>
+      </main>
+    );
+  }
   if (!data) {
     return (
-      <div className="invite-state">
-        <h1>Invitation unavailable</h1>
-        <p>{error}</p>
-        <Link className="button button-primary" href="/">
-          Return home
-        </Link>
-      </div>
+      <main className="invite-page">
+        <InvitationNavigation />
+        <div className="invite-state">
+          <h1>Invitation unavailable</h1>
+          <p>{error}</p>
+          <Link className="button button-primary" href="/">
+            Return home
+          </Link>
+        </div>
+      </main>
     );
   }
 
   if (decision) {
     const accepted = decision === "accepted";
     return (
-      <main className="invite-decision">
-        <div className={`decision-icon ${accepted ? "accepted" : "declined"}`}>
-          {accepted ? <Check size={30} /> : <X size={30} />}
-        </div>
-        <p>
-          {accepted
-            ? isDemo
-              ? "Demo invitation previewed"
-              : "Agreement accepted"
-            : "Invitation declined"}
-        </p>
-        <h1>{data.agreement.title}</h1>
-        <span>
-          {accepted
-            ? isDemo
-              ? "This demo choice was not saved and your wallet was not linked."
-              : "Your wallet is now linked to the agreement."
-            : "No wallet action or transaction was created."}
-        </span>
-        <div className="decision-ticket">
-          <div>
-            <small>Agreement</small>
-            <strong>{data.agreement.publicRef}</strong>
+      <div className="invite-page">
+        <InvitationNavigation />
+        <main className="invite-decision">
+          <div className={`decision-icon ${accepted ? "accepted" : "declined"}`}>
+            {accepted ? <Check size={30} /> : <X size={30} />}
           </div>
-          <div>
-            <small>Total</small>
-            <strong>
-              {Number(data.agreement.totalAmount).toLocaleString()} USDC
-            </strong>
+          <p>
+            {accepted
+              ? isDemo
+                ? "Demo invitation previewed"
+                : "Agreement accepted"
+              : "Invitation declined"}
+          </p>
+          <h1>{data.agreement.title}</h1>
+          <span>
+            {accepted
+              ? isDemo
+                ? "This demo choice was not saved and your wallet was not linked."
+                : "Your wallet is now linked to the agreement."
+              : "No wallet action or transaction was created."}
+          </span>
+          <div className="decision-ticket">
+            <div>
+              <small>Agreement</small>
+              <strong>{data.agreement.publicRef}</strong>
+            </div>
+            <div>
+              <small>Total</small>
+              <strong>
+                {Number(data.agreement.totalAmount).toLocaleString()} USDC
+              </strong>
+            </div>
+            <div>
+              <small>Network</small>
+              <strong>Arc Testnet</strong>
+            </div>
           </div>
-          <div>
-            <small>Network</small>
-            <strong>Arc Testnet</strong>
-          </div>
-        </div>
-        <Link
-          className="button button-primary"
-          href={
-            accepted
-              ? `/app/agreements/${data.agreement.publicRef.toLowerCase()}`
-              : "/"
-          }
-        >
-          {accepted ? (isDemo ? "Continue demo" : "Open agreement") : "Return home"}
-          <ArrowRight size={16} />
-        </Link>
-      </main>
+          <Link
+            className="button button-primary"
+            href={
+              accepted
+                ? `/app/agreements/${data.agreement.publicRef.toLowerCase()}`
+                : "/"
+            }
+          >
+            {accepted
+              ? isDemo
+                ? "Continue demo"
+                : "Open agreement"
+              : "Return home"}
+            <ArrowRight size={16} />
+          </Link>
+        </main>
+      </div>
     );
   }
 
   return (
     <main className="invite-page">
-      <nav className="invite-nav">
-        <Link className="wordmark" href="/">
-          <span className="wordmark-mark">d</span>
-          duevia
-        </Link>
-        <div className="invite-nav-actions">
-          <span className="network-chip">
-            <i />
-            Arc Testnet
-          </span>
-          <WalletButton />
-        </div>
-      </nav>
+      <InvitationNavigation />
 
       <header className="invite-header">
         <p>You’ve been invited to a Duevia agreement</p>

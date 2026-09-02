@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;
@@ -54,6 +54,14 @@ async function proxyToDueviaBackend(
     headers.delete(name);
   }
   headers.set("OAI-Sites-Authorization", `Bearer ${bearerToken}`);
+  const clientIp =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip")?.trim();
+  if (clientIp) {
+    headers.set("x-duevia-client-ip", clientIp.slice(0, 96));
+  } else {
+    headers.delete("x-duevia-client-ip");
+  }
   headers.set(
     "x-forwarded-host",
     request.headers.get("x-forwarded-host") ??

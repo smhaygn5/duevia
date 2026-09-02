@@ -5,9 +5,11 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  Copy,
   Download,
   ExternalLink,
   FileText,
+  Fingerprint,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,6 +25,9 @@ import {
   syncAgreementTransaction,
   writeEscrowAction,
 } from "@/lib/contracts/duevia";
+import { isApprovalChecklistComplete } from "@/lib/agreements/approval-checklist";
+import { getSubmissionVersions } from "@/lib/agreements/versioned-deliverables";
+import { contentHashLabel } from "@/lib/agreements/delivery-integrity";
 import { useWallet } from "./wallet-provider";
 
 type ReviewState = "review" | "changes" | "approve";
@@ -32,11 +37,16 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
   const wallet = useWallet();
   const [state, setState] = useState<ReviewState>("review");
   const [feedback, setFeedback] = useState("");
+  const [checkedChecklist, setCheckedChecklist] = useState<string[]>([]);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(
+    null,
+  );
   const [changesSent, setChangesSent] = useState(false);
   const [agreementData, setAgreementData] = useState<AgreementPayload | null>(
     null,
   );
   const [busy, setBusy] = useState(false);
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isDemo = agreementRef.toUpperCase() === demoAgreement.publicRef;
   const currentMilestone = agreementData
@@ -45,7 +55,7 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
   const submission = agreementData?.submissions.find(
     (item) => item.milestone_position === currentMilestone?.position,
   );
-  const realDeliverables =
+  const currentRealDeliverables =
     agreementData?.deliverables.filter(
       (item) => item.submission_id === submission?.id,
     ) ?? [];
@@ -115,6 +125,10 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
 
   async function confirmRelease() {
     setError(null);
+    if (!checklistComplete) {
+      setError("Review every checklist item before releasing this milestone.");
+      return;
+    }
     if (isDemo) {
       router.push("/app/receipts/demo");
       return;
@@ -143,7 +157,13 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
           args: [BigInt(currentMilestone.position - 1)],
         },
       );
-      await syncAgreementTransaction(agreementRef, receipt);
+      await syncAgreementTransaction(
+        agreementRef,
+        receipt,
+        undefined,
+        undefined,
+        approvalChecklist.map((item) => item.label),
+      );
       router.push(`/app/receipts/${receipt.transactionHash}`);
     } catch (releaseError) {
       setError(
@@ -185,18 +205,20 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
       : demoDelivery.reviewDeadline;
   const summary =
     submission?.note?.split("\n\n")[0] ?? demoDelivery.summary;
-  const deliverables = isDemo
+  const currentDeliverables = isDemo
     ? demoDelivery.deliverables.map((item) => ({
         id: item.id,
         name: item.name,
         meta: item.meta,
         href: null,
+        contentHash: `demo-${item.id}-delivery-integrity-record`,
       }))
-    : realDeliverables.map((item) => ({
+    : currentRealDeliverables.map((item) => ({
         id: item.id,
         name: item.original_name,
         meta: `${Math.max(item.size_bytes / 1_048_576, 0.01).toFixed(2)} MB`,
         href: `/api/deliverables/${item.id}`,
+        contentHash: item.content_hash,
       }));
   const criteria = isDemo
     ? demoDelivery.criteria
@@ -208,6 +230,96 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
           complete: true,
         },
       ];
+  const submissionVersions = isDemo
+    ? [
+        {
+          id: "demo-current-submission",
+          milestone_position: milestonePosition,
+          submitted_at: 0,
+          note: demoDelivery.summary,
+          version: 1,
+          isLatest: true,
+        },
+      ]
+    : getSubmissionVersions(
+        agreementData?.submissions ?? [],
+        currentMilestone?.position ?? milestonePosition,
+      );
+  const viewedSubmissionId = selectedSubmissionId ?? submissionVersions[0]?.id;
+  const viewedSubmission = submissionVersions.find(
+    (item) => item.id === viewedSubmissionId,
+  );
+  const viewedSubmittedAt =
+    viewedSubmission && !isDemo
+      ? new Date(viewedSubmission.submitted_at).toLocaleString("en", {
+          dateStyle: "medium",
+          timeStyle: "short",
+          timeZone: "UTC",
+        })
+      : submittedAt;
+  const viewedDeliverables = isDemo
+    ? currentDeliverables
+    : (agreementData?.deliverables ?? [])
+        .filter((item) => item.submission_id === viewedSubmissionId)
+        .map((item) => ({
+          id: item.id,
+          name: item.original_name,
+          meta: `${Math.max(item.size_bytes / 1_048_576, 0.01).toFixed(2)} MB`,
+          href: `/api/deliverables/${item.id}`,
+          contentHash: item.content_hash,
+        }));
+  const revisionsRemaining = Math.max(
+    (currentMilestone?.revision_limit ?? 1) -
+      (currentMilestone?.revisions_used ?? 0),
+    0,
+  );
+  const approvalChecklist = [
+    {
+      id: "delivery",
+      label: "I reviewed the submitted delivery package.",
+      available: currentDeliverables.length > 0,
+    },
+    ...criteria.map((criterion, index) => ({
+      id: `criterion-${index}`,
+      label: `I verified: ${criterion.label}`,
+      available: criterion.complete,
+    })),
+    {
+      id: "revisions",
+      label:
+        revisionsRemaining > 0
+          ? `${revisionsRemaining} revision ${revisionsRemaining === 1 ? "remains" : "remain"} available before release.`
+          : "The agreed revision limit has been used.",
+      available: true,
+    },
+    {
+      id: "settlement",
+      label: `I understand this approval releases exactly ${amount} on Arc Testnet.`,
+      available: true,
+    },
+  ];
+  const checklistComplete = isApprovalChecklistComplete(
+    approvalChecklist,
+    checkedChecklist,
+  );
+
+  function toggleChecklistItem(id: string) {
+    setCheckedChecklist((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
+  }
+
+  async function copyHash(hash: string) {
+    try {
+      await navigator.clipboard.writeText(hash);
+      setCopiedHash(hash);
+      window.setTimeout(() => setCopiedHash(null), 1_800);
+    } catch {
+      setError("The integrity hash could not be copied. Please copy it from the manifest.");
+    }
+  }
 
   if (changesSent) {
     return (
@@ -270,13 +382,40 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
               <div>
                 <span>Submitted by {provider}</span>
                 <h2>Delivery package</h2>
-                <p>{submittedAt}</p>
+                <p>{viewedSubmittedAt}</p>
               </div>
-              <span className="status-badge status-submitted">Submitted</span>
+              <span className="status-badge status-submitted">
+                Version {viewedSubmission?.version ?? 1}
+              </span>
             </header>
-            <p className="delivery-summary">{summary}</p>
+            <p className="delivery-summary">
+              {viewedSubmission?.note?.split("\n\n")[0] ?? summary}
+            </p>
+            <section className="deliverable-version-history" aria-label="Delivery versions">
+              <div>
+                <span>Delivery versions</span>
+                <small>
+                  {submissionVersions.length === 1
+                    ? "This is the first submitted version."
+                    : "Earlier versions remain available for review."}
+                </small>
+              </div>
+              <nav aria-label="Choose a delivery version">
+                {submissionVersions.map((version) => (
+                  <button
+                    className={version.id === viewedSubmissionId ? "active" : ""}
+                    key={version.id}
+                    type="button"
+                    onClick={() => setSelectedSubmissionId(version.id)}
+                  >
+                    V{version.version}
+                    {version.isLatest ? " · Current" : ""}
+                  </button>
+                ))}
+              </nav>
+            </section>
             <div className="deliverable-list">
-              {deliverables.map((deliverable, index) => (
+              {viewedDeliverables.map((deliverable, index) => (
                 <div className="deliverable-row" key={deliverable.id}>
                   <span className="file-icon">
                     {index === 2 ? <ExternalLink size={17} /> : <FileText size={17} />}
@@ -304,6 +443,31 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
                 </div>
               ))}
             </div>
+            <section className="delivery-integrity" aria-label="Delivery integrity manifest">
+              <header>
+                <span><Fingerprint size={16} /></span>
+                <div>
+                  <strong>Delivery integrity manifest</strong>
+                  <p>Each uploaded file is identified by its SHA-256 content hash.</p>
+                </div>
+              </header>
+              <div>
+                {viewedDeliverables.map((deliverable) => (
+                  <div className="delivery-integrity-row" key={`${deliverable.id}-hash`}>
+                    <small>{deliverable.name}</small>
+                    <code title={deliverable.contentHash}>{contentHashLabel(deliverable.contentHash)}</code>
+                    <button
+                      type="button"
+                      onClick={() => void copyHash(deliverable.contentHash)}
+                      aria-label={`Copy integrity hash for ${deliverable.name}`}
+                    >
+                      <Copy size={14} />
+                      {copiedHash === deliverable.contentHash ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
           </article>
 
           <article className="panel criteria-card">
@@ -437,11 +601,38 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
                   <strong>Arc Testnet</strong>
                 </div>
               </div>
+              <section className="approval-checklist" aria-label="Approval checklist">
+                <header>
+                  <div>
+                    <span>Approval checklist</span>
+                    <p>Confirm every item before settlement is released.</p>
+                  </div>
+                  <strong>
+                    {checkedChecklist.length} / {approvalChecklist.length}
+                  </strong>
+                </header>
+                <div>
+                  {approvalChecklist.map((item) => (
+                    <label
+                      className={item.available ? "" : "unavailable"}
+                      key={item.id}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checkedChecklist.includes(item.id)}
+                        disabled={!item.available || busy}
+                        onChange={() => toggleChecklistItem(item.id)}
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </section>
               {error && <div className="form-error" role="alert">{error}</div>}
               <button
                 className="button button-approve decision-submit"
                 type="button"
-                disabled={busy}
+                disabled={busy || !checklistComplete}
                 onClick={() => void confirmRelease()}
               >
                 {busy ? "Confirming on Arc..." : "Confirm and release"}

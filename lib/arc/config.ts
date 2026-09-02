@@ -2,9 +2,10 @@ import { defineChain, type Address } from "viem";
 
 export const ARC = {
   chainId: 5_042_002,
-  rpcUrls: [
-    "https://rpc.testnet.arc.io",
+  rpcUrls: ["https://rpc.testnet.arc.network"] as const,
+  readRpcUrls: [
     "https://rpc.testnet.arc.network",
+    "https://arc-testnet.drpc.org",
   ] as const,
   explorerUrl: "https://testnet.arcscan.app",
   cctpDomain: 26,

@@ -5,6 +5,7 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  Download,
   ExternalLink,
   FileDown,
 } from "lucide-react";
@@ -12,6 +13,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ARC } from "@/lib/arc/config";
 import { demoReceipt } from "@/lib/demo-data";
+import { receiptExportFilename, receiptExportText } from "@/lib/agreements/receipt-export";
 
 type ReceiptModel = {
   status: string;
@@ -25,6 +27,7 @@ type ReceiptModel = {
   network: string;
   date: string;
   txHash: string;
+  approvalChecklist?: readonly string[];
 };
 
 export function ReceiptCard({ receiptId }: { receiptId: string }) {
@@ -80,6 +83,16 @@ export function ReceiptCard({ receiptId }: { receiptId: string }) {
     await navigator.clipboard.writeText(receipt!.txHash);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1_600);
+  }
+
+  function downloadReceipt() {
+    const blob = new Blob([receiptExportText(receipt!)], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = receiptExportFilename(receipt!);
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -142,6 +155,20 @@ export function ReceiptCard({ receiptId }: { receiptId: string }) {
           )}
         </div>
 
+        {receipt.approvalChecklist && receipt.approvalChecklist.length > 0 && (
+          <div className="receipt-checklist">
+            <span>Approval checklist</span>
+            <ul>
+              {receipt.approvalChecklist.map((item) => (
+                <li key={item}>
+                  <Check size={13} />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {isDemo && (
           <div className="demo-disclosure">
             This receipt illustrates the verified settlement state. No real
@@ -150,13 +177,17 @@ export function ReceiptCard({ receiptId }: { receiptId: string }) {
         )}
 
         <div className="receipt-actions">
+          <button className="button button-quiet" type="button" onClick={downloadReceipt}>
+            <Download size={16} />
+            Download record
+          </button>
           <button
             className="button button-quiet"
             type="button"
             onClick={() => window.print()}
           >
             <FileDown size={16} />
-            Print receipt
+            Print / save PDF
           </button>
           {explorerUrl ? (
             <a

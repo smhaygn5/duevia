@@ -5,8 +5,10 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Clock3,
+  AlertTriangle,
   FileCheck2,
   LockKeyhole,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -19,6 +21,7 @@ import {
 import { AppHeader } from "./app-header";
 import { StatusBadge } from "./status-badge";
 import { useWallet } from "./wallet-provider";
+import { assessAgreementHealth } from "@/lib/agreements/agreement-health";
 
 function titleCase(value: string) {
   return value
@@ -33,6 +36,16 @@ function formatUsdc(minor: string) {
     maximumFractionDigits: 2,
   });
 }
+
+const demoDeadlineRisks = [
+  { agreementRef: demoAgreement.publicRef, title: "Product build", dueAt: Date.parse("2026-08-15T12:00:00.000Z"), level: "medium" as const, label: "Due within 48 hours", action: "Review progress with provider" },
+  { agreementRef: "DV-9M1C", title: "Discovery brief", dueAt: Date.parse("2026-08-20T12:00:00.000Z"), level: "low" as const, label: "Upcoming", action: "Prepare or update delivery" },
+];
+
+const demoSettlementForecast = [
+  { agreementRef: demoAgreement.publicRef, agreementTitle: "Global Product Launch", milestoneTitle: "Product build", amountMinor: "4500000000", releaseAt: Date.parse("2026-08-18T12:00:00.000Z"), label: "In review" },
+  { agreementRef: "DV-9M1C", agreementTitle: "Brand foundation", milestoneTitle: "Discovery brief", amountMinor: "1800000000", releaseAt: Date.parse("2026-08-23T12:00:00.000Z"), label: "Awaiting delivery" },
+];
 
 export function DashboardOverview() {
   const wallet = useWallet();
@@ -111,6 +124,13 @@ export function DashboardOverview() {
         total: agreement.total,
         status: agreement.status,
       }));
+  const health = assessAgreementHealth({
+    activeAgreements: isVerified ? dashboard!.summary.activeAgreements : 2,
+    deadlineRisks: isVerified ? dashboard!.deadlineRisks : demoDeadlineRisks,
+    settlementForecast: isVerified
+      ? dashboard!.settlementForecast
+      : demoSettlementForecast,
+  });
 
   return (
     <>
@@ -210,6 +230,62 @@ export function DashboardOverview() {
 
       {(!wallet.authenticated || isVerified) && (
         <>
+          <section className={`panel agreement-health ${health.level}`} aria-label="Agreement health">
+            <div className="agreement-health-score" aria-label={`${health.score} out of 100`}>
+              <span>{health.score}</span>
+              <small>health</small>
+            </div>
+            <div className="agreement-health-copy">
+              <div className="agreement-health-kicker"><ShieldCheck size={15} /> Agreement health</div>
+              <h2>{health.title}</h2>
+              <p>{health.detail}</p>
+            </div>
+            <div className="agreement-health-signals" aria-label="Health signals">
+              {health.signals.map((signal) => (
+                <span className={signal.tone} key={signal.label}>{signal.label}</span>
+              ))}
+            </div>
+          </section>
+          <section className="panel deadline-risk-center">
+            <header className="panel-header">
+              <div>
+                <h2>Deadline & risk center</h2>
+                <p>{isVerified ? "Upcoming milestones and the next action for your role." : "A sample view of the deadlines that need attention."}</p>
+              </div>
+              <span className="risk-count">{isVerified ? dashboard!.deadlineRisks.length : 2} open</span>
+            </header>
+            <div className="risk-list">
+              {(isVerified ? dashboard!.deadlineRisks : demoDeadlineRisks).map((risk) => (
+                <Link className={`risk-row ${risk.level}`} key={`${risk.agreementRef}-${risk.title}`} href={`/app/agreements/${risk.agreementRef.toLowerCase()}`}>
+                  <span className="risk-icon"><AlertTriangle size={15} /></span>
+                  <div><small>{risk.agreementRef} · {risk.label}</small><strong>{risk.title}</strong><p>{risk.action}</p></div>
+                  <time>{new Date(risk.dueAt).toLocaleDateString("en", { month: "short", day: "numeric" })}</time>
+                  <ArrowRight size={15} />
+                </Link>
+              ))}
+              {isVerified && !dashboard!.deadlineRisks.length && <div className="risk-empty"><CheckCircle2 size={16} /> No active milestone deadlines need attention.</div>}
+            </div>
+          </section>
+          <section className="panel settlement-forecast-panel">
+            <header className="panel-header">
+              <div>
+                <h2>Settlement forecast</h2>
+                <p>{isVerified ? "Expected release windows from your active milestones." : "Sample release windows from the demo workflow."}</p>
+              </div>
+              <Clock3 size={18} />
+            </header>
+            <div className="settlement-forecast-list">
+              {(isVerified ? dashboard!.settlementForecast : demoSettlementForecast).map((item) => (
+                <Link className="settlement-forecast-row" key={`${item.agreementRef}-${item.milestoneTitle}`} href={`/app/agreements/${item.agreementRef.toLowerCase()}`}>
+                  <span className={item.label === "In review" ? "forecast-state review" : "forecast-state"}><Clock3 size={15} /></span>
+                  <div><small>{item.agreementRef} · {item.label}</small><strong>{item.milestoneTitle}</strong><p>{item.agreementTitle}</p></div>
+                  <div className="forecast-amount"><strong>{formatUsdc(item.amountMinor)} USDC</strong><small>Expected {new Date(item.releaseAt).toLocaleDateString("en", { month: "short", day: "numeric" })}</small></div>
+                  <ArrowRight size={15} />
+                </Link>
+              ))}
+              {isVerified && !dashboard!.settlementForecast.length && <div className="risk-empty"><CheckCircle2 size={16} /> No upcoming settlement windows.</div>}
+            </div>
+          </section>
           <section className="metric-grid" aria-label="Workspace summary">
             <article className="metric-card">
               <span className="metric-icon">

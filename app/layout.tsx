@@ -24,8 +24,30 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description,
     icons: {
-      icon: "/favicon.svg",
-      shortcut: "/favicon.svg",
+      icon: [
+        {
+          url: "/favicon.ico?v=3",
+          type: "image/x-icon",
+        },
+        {
+          url: "/favicon.svg?v=3",
+          type: "image/svg+xml",
+          sizes: "any",
+        },
+        {
+          url: "/favicon-32x32.png?v=3",
+          type: "image/png",
+          sizes: "32x32",
+        },
+      ],
+      shortcut: "/favicon.ico?v=3",
+      apple: [
+        {
+          url: "/apple-touch-icon.png?v=3",
+          type: "image/png",
+          sizes: "180x180",
+        },
+      ],
     },
     openGraph: {
       title: "Duevia — Work in stages. Settle globally.",
@@ -50,9 +72,29 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  colorScheme: "dark",
+  colorScheme: "dark light",
   themeColor: "#020618",
 };
+
+const themeScript = `
+  (() => {
+    try {
+      const storedTheme = localStorage.getItem("duevia-theme");
+      const systemTheme = matchMedia("(prefers-color-scheme: light)").matches
+        ? "light"
+        : "dark";
+      const theme =
+        storedTheme === "light" || storedTheme === "dark"
+          ? storedTheme
+          : systemTheme;
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+    } catch {
+      document.documentElement.dataset.theme = "dark";
+      document.documentElement.style.colorScheme = "dark";
+    }
+  })();
+`;
 
 export default function RootLayout({
   children,
@@ -60,7 +102,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         <WalletProvider>{children}</WalletProvider>
       </body>

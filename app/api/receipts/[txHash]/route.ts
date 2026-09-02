@@ -2,23 +2,9 @@ import { formatUnits, isHash } from "viem";
 import { NextRequest, NextResponse } from "next/server";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import { getWalletSession } from "@/lib/auth/server";
+import { receiptTitle } from "@/lib/agreements/receipt-title";
 
 export const dynamic = "force-dynamic";
-
-function receiptTitle(type: string) {
-  const titles: Record<string, string> = {
-    "escrow.deployed": "Agreement escrow deployed",
-    "agreement.funded": "Agreement funded",
-    "milestone.started": "Milestone started",
-    "milestone.submitted": "Milestone submitted",
-    "milestone.changes_requested": "Changes requested",
-    "milestone.released": "Milestone approved",
-    "agreement.cancelled": "Agreement cancelled",
-    "agreement.refunded": "Agreement refunded",
-    "agreement.completed": "Agreement completed",
-  };
-  return titles[type] ?? "Arc transaction confirmed";
-}
 
 export async function GET(
   request: NextRequest,
@@ -121,6 +107,11 @@ export async function GET(
           timeZone: "UTC",
         }),
         txHash: row.tx_hash,
+        approvalChecklist: Array.isArray(detail.approvalChecklist)
+          ? detail.approvalChecklist.filter(
+              (item): item is string => typeof item === "string",
+            )
+          : [],
       },
     });
   } catch (error) {

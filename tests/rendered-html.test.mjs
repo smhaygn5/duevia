@@ -50,6 +50,14 @@ test("server-renders the Duevia global landing page", async () => {
   assert.match(html, /Deliver/);
   assert.match(html, /Settle/);
   assert.match(html, /Arc Testnet/);
+  assert.match(html, /duevia-logo-dark\.svg/);
+  assert.match(html, /duevia-logo-light\.svg/);
+  assert.match(html, /favicon\.ico\?v=3/);
+  assert.match(html, /favicon\.svg\?v=3/);
+  assert.match(html, /favicon-32x32\.png\?v=3/);
+  assert.match(html, /apple-touch-icon\.png\?v=3/);
+  assert.match(html, /Switch to light theme/);
+  assert.match(html, /duevia-theme/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
 
@@ -61,20 +69,33 @@ test("server-renders the working workspace dashboard", async () => {
   assert.match(html, /Review milestone/);
   assert.match(html, /Locked in escrow/);
   assert.match(html, /Arc Testnet/);
+  assert.match(html, /Workspace home/);
+  assert.match(html, /duevia-logo-dark\.svg/);
+  assert.match(html, /Switch to light theme/);
 });
 
 test("server-renders the connected demo decision path", async () => {
-  const [agreement, review, receipt] = await Promise.all([
+  const [agreement, review, receipt, invitation] = await Promise.all([
     render("/app/agreements/dv-7k2p"),
     render("/app/agreements/dv-7k2p/review"),
     render("/app/receipts/demo"),
+    render("/invite/demo"),
   ]);
   assert.equal(agreement.status, 200);
   assert.equal(review.status, 200);
   assert.equal(receipt.status, 200);
-  assert.match(await agreement.text(), /Global Product Launch/);
+  assert.equal(invitation.status, 200);
+  const agreementHtml = await agreement.text();
+  assert.match(agreementHtml, /Global Product Launch/);
+  assert.match(agreementHtml, /Dispute resolution room/);
+  assert.match(agreementHtml, /wallet signed record/i);
   assert.match(await review.text(), /Approve milestone/);
   assert.match(await receipt.text(), /Demo receipt/);
+  const invitationHtml = await invitation.text();
+  assert.match(invitationHtml, /Invitation navigation/);
+  assert.match(invitationHtml, /Workspace/);
+  assert.match(invitationHtml, /duevia-logo-dark\.svg/);
+  assert.match(invitationHtml, /Switch to light theme/);
 });
 
 test("starter skeleton is fully removed", async () => {
