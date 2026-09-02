@@ -5036,6 +5036,70 @@ button:disabled,
   margin-top: 20px;
 }
 
+.agreement-health {
+  align-items: center;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 78px minmax(0, 1fr) auto;
+  margin-top: 20px;
+  overflow: hidden;
+  padding: 18px;
+  position: relative;
+}
+
+.agreement-health::after {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: 999px;
+  content: "";
+  height: 190px;
+  pointer-events: none;
+  position: absolute;
+  right: -75px;
+  top: -105px;
+  width: 190px;
+}
+
+.agreement-health.attention::after { background: color-mix(in srgb, #e8a249 12%, transparent); }
+.agreement-health.urgent::after { background: color-mix(in srgb, #df6674 12%, transparent); }
+
+.agreement-health-score {
+  align-items: center;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  height: 70px;
+  justify-content: center;
+  position: relative;
+  width: 70px;
+  z-index: 1;
+}
+
+.agreement-health.attention .agreement-health-score { background: color-mix(in srgb, #e8a249 13%, var(--surface)); border-color: color-mix(in srgb, #e8a249 36%, var(--line)); }
+.agreement-health.urgent .agreement-health-score { background: color-mix(in srgb, #df6674 13%, var(--surface)); border-color: color-mix(in srgb, #df6674 36%, var(--line)); }
+.agreement-health-score span { font-size: 1.28rem; font-weight: 760; line-height: 1; }
+.agreement-health-score small { color: var(--muted); font-size: 0.62rem; margin-top: 3px; }
+.agreement-health-kicker { align-items: center; color: var(--accent); display: flex; font-size: 0.72rem; font-weight: 700; gap: 6px; letter-spacing: 0.03em; text-transform: uppercase; }
+.agreement-health-copy h2 { font-size: 1.05rem; margin: 5px 0 3px; }
+.agreement-health-copy p { color: var(--muted); font-size: 0.82rem; margin: 0; max-width: 580px; }
+.agreement-health-signals { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; position: relative; z-index: 1; }
+.agreement-health-signals span { background: color-mix(in srgb, var(--surface) 82%, var(--page)); border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 0.7rem; font-weight: 650; padding: 6px 9px; white-space: nowrap; }
+.agreement-health-signals .positive { border-color: color-mix(in srgb, #22a977 32%, var(--line)); color: #20875f; }
+.agreement-health-signals .warning { border-color: color-mix(in srgb, #e8a249 40%, var(--line)); color: #b97016; }
+.agreement-health-signals .critical { border-color: color-mix(in srgb, #df6674 40%, var(--line)); color: #bb3e50; }
+
+@media (max-width: 780px) {
+  .agreement-health { align-items: start; grid-template-columns: 70px minmax(0, 1fr); }
+  .agreement-health-signals { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+@media (max-width: 420px) {
+  .agreement-health { gap: 13px; padding: 14px; }
+  .agreement-health-score { height: 58px; width: 58px; }
+  .agreement-health-copy h2 { font-size: 0.98rem; }
+}
+
 .settlement-forecast-list {
   display: grid;
   gap: 8px;

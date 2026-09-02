@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   FileCheck2,
   LockKeyhole,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -20,6 +21,7 @@ import {
 import { AppHeader } from "./app-header";
 import { StatusBadge } from "./status-badge";
 import { useWallet } from "./wallet-provider";
+import { assessAgreementHealth } from "@/lib/agreements/agreement-health";
 
 function titleCase(value: string) {
   return value
@@ -122,6 +124,13 @@ export function DashboardOverview() {
         total: agreement.total,
         status: agreement.status,
       }));
+  const health = assessAgreementHealth({
+    activeAgreements: isVerified ? dashboard!.summary.activeAgreements : 2,
+    deadlineRisks: isVerified ? dashboard!.deadlineRisks : demoDeadlineRisks,
+    settlementForecast: isVerified
+      ? dashboard!.settlementForecast
+      : demoSettlementForecast,
+  });
 
   return (
     <>
@@ -221,6 +230,22 @@ export function DashboardOverview() {
 
       {(!wallet.authenticated || isVerified) && (
         <>
+          <section className={`panel agreement-health ${health.level}`} aria-label="Agreement health">
+            <div className="agreement-health-score" aria-label={`${health.score} out of 100`}>
+              <span>{health.score}</span>
+              <small>health</small>
+            </div>
+            <div className="agreement-health-copy">
+              <div className="agreement-health-kicker"><ShieldCheck size={15} /> Agreement health</div>
+              <h2>{health.title}</h2>
+              <p>{health.detail}</p>
+            </div>
+            <div className="agreement-health-signals" aria-label="Health signals">
+              {health.signals.map((signal) => (
+                <span className={signal.tone} key={signal.label}>{signal.label}</span>
+              ))}
+            </div>
+          </section>
           <section className="panel deadline-risk-center">
             <header className="panel-header">
               <div>
