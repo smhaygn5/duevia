@@ -24,6 +24,8 @@ USDC stage by stage.
 - SHA-256 file proofs and keccak256 onchain submission proofs
 - mutual cancellation, pre-work cancellation, deadline refund, and provider
   timeout release paths
+- wallet-signed dispute rooms with milestone context, HTTPS evidence links,
+  local SHA-256 file proofs, and counterparty-approved resolution records
 - Arc transaction synchronization, human-readable activity, and verifiable
   receipts
 - durable wallet-auth request limits and browser security headers
@@ -83,7 +85,7 @@ npm run factory:check
 npm run test:contracts
 ```
 
-The current release passes 37 unit tests, 4 rendered-page tests, and 9 Solidity
+The current release passes 58 unit tests, 4 rendered-page tests, and 9 Solidity
 tests.
 
 ## Arc Testnet contract deployment

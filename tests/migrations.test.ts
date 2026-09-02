@@ -141,3 +141,43 @@ test("unique escrow reference migration upgrades only agreements without deploym
   ]);
   db.close();
 });
+
+test("dispute migration stores signed events against an agreement", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  db.exec(`
+    CREATE TABLE wallets (id TEXT PRIMARY KEY NOT NULL);
+    CREATE TABLE agreements (id TEXT PRIMARY KEY NOT NULL);
+    CREATE TABLE milestones (id TEXT PRIMARY KEY NOT NULL);
+  `);
+  db.exec(migration("0005_dispute_resolution.sql"));
+  db.prepare("INSERT INTO wallets (id) VALUES (?)").run("wallet-client");
+  db.prepare("INSERT INTO agreements (id) VALUES (?)").run("agreement-1");
+  db.prepare(
+    `INSERT INTO disputes (
+      id, agreement_id, milestone_id, opened_by_wallet_id, category, status,
+      proposed_resolution, proposed_by_wallet_id, proposal_event_id,
+      accepted_by_wallet_id, opened_at, resolved_at, updated_at
+    ) VALUES (?, ?, NULL, ?, 'delivery', 'open', NULL, NULL, NULL, NULL, ?, NULL, ?)`,
+  ).run("dispute-1", "agreement-1", "wallet-client", 100, 100);
+  db.prepare(
+    `INSERT INTO dispute_events (
+      id, dispute_id, actor_wallet_id, kind, statement, evidence_url,
+      evidence_sha256, resolution_type, signature, occurred_at
+    ) VALUES (?, ?, ?, 'opened', ?, NULL, NULL, NULL, ?, ?)`,
+  ).run("event-1", "dispute-1", "wallet-client", "Delivery was incomplete.", "0x1234", 100);
+
+  const event = db.prepare("SELECT kind, signature FROM dispute_events WHERE dispute_id = ?").get("dispute-1") as Record<string, unknown>;
+  assert.equal(event.kind, "opened");
+  assert.equal(event.signature, "0x1234");
+  assert.throws(() => db.prepare(
+    `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, signature, occurred_at)
+     VALUES ('event-2', 'dispute-1', 'wallet-client', 'evidence', 'Duplicate', '0x1234', 101)`,
+  ).run(), /UNIQUE/);
+  assert.throws(() => db.prepare(
+    `INSERT INTO disputes (
+      id, agreement_id, opened_by_wallet_id, category, status, opened_at, updated_at
+    ) VALUES ('dispute-2', 'agreement-1', 'wallet-client', 'scope', 'open', 101, 101)`,
+  ).run(), /UNIQUE/);
+  db.close();
+});

@@ -42,6 +42,7 @@ type WalletContextValue = {
   connect: (walletId: string) => Promise<boolean>;
   ensureProvider: () => Promise<EthereumProvider>;
   switchToArc: () => Promise<void>;
+  signMessage: (message: string) => Promise<`0x${string}`>;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -644,6 +645,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [activeProvider, address, chainId, primeChallenge]);
 
+  const signMessage = useCallback(async (message: string) => {
+    if (!authenticated || !address) {
+      throw new Error("Sign in with the agreement wallet before signing this record.");
+    }
+    if (chainId !== ARC.chainId) {
+      throw new Error("Switch the connected wallet to Arc Testnet before signing this record.");
+    }
+    const provider = await ensureProvider();
+    const signature = await provider.request<`0x${string}`>({
+      method: "personal_sign",
+      params: [stringToHex(message), address],
+    });
+    if (!/^0x[0-9a-fA-F]+$/.test(signature)) {
+      throw new Error("The wallet did not return a valid signature.");
+    }
+    return signature;
+  }, [address, authenticated, chainId, ensureProvider]);
+
   const signOut = useCallback(async () => {
     setError(null);
     sessionVersionRef.current += 1;
@@ -672,6 +691,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       connect,
       ensureProvider,
       switchToArc,
+      signMessage,
       signIn,
       signOut,
     }),
@@ -687,6 +707,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       installedWallets,
       ready,
       signIn,
+      signMessage,
       signOut,
       switchToArc,
     ],

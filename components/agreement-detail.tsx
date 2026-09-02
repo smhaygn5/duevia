@@ -18,6 +18,7 @@ import { useWallet } from "./wallet-provider";
 import { demoAgreement } from "@/lib/demo-data";
 import { publicProofUrl } from "@/lib/agreements/public-proof";
 import { ChangeOrderPanel } from "./change-order-panel";
+import { DisputeResolutionRoom } from "./dispute-resolution-room";
 
 type DetailModel = {
   publicRef: string;
@@ -341,6 +342,12 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
             </div>
           </section>
           {!isDemo && <ChangeOrderPanel agreementRef={detail.publicRef} />}
+          <DisputeResolutionRoom
+            agreementRef={detail.publicRef}
+            currentRole={detail.currentRole}
+            demo={isDemo}
+            milestones={detail.milestones.map(({ position, title }) => ({ position, title }))}
+          />
         </div>
 
         <aside className="action-panel">

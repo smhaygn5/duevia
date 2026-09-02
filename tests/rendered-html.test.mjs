@@ -85,7 +85,10 @@ test("server-renders the connected demo decision path", async () => {
   assert.equal(review.status, 200);
   assert.equal(receipt.status, 200);
   assert.equal(invitation.status, 200);
-  assert.match(await agreement.text(), /Global Product Launch/);
+  const agreementHtml = await agreement.text();
+  assert.match(agreementHtml, /Global Product Launch/);
+  assert.match(agreementHtml, /Dispute resolution room/);
+  assert.match(agreementHtml, /wallet signed record/i);
   assert.match(await review.text(), /Approve milestone/);
   assert.match(await receipt.text(), /Demo receipt/);
   const invitationHtml = await invitation.text();
