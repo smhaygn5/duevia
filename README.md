@@ -85,7 +85,7 @@ npm run factory:check
 npm run test:contracts
 ```
 
-The current release passes 58 unit tests, 4 rendered-page tests, and 9 Solidity
+The current release passes 59 unit tests, 4 rendered-page tests, and 9 Solidity
 tests.
 
 ## Arc Testnet contract deployment

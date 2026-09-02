@@ -181,3 +181,25 @@ test("dispute migration stores signed events against an agreement", () => {
   ).run(), /UNIQUE/);
   db.close();
 });
+
+test("change order migration restores the production workspace table", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  db.exec(`
+    CREATE TABLE wallets (id TEXT PRIMARY KEY NOT NULL);
+    CREATE TABLE agreements (id TEXT PRIMARY KEY NOT NULL);
+  `);
+  db.exec(migration("0006_change_orders.sql"));
+  db.prepare("INSERT INTO wallets (id) VALUES (?)").run("wallet-client");
+  db.prepare("INSERT INTO agreements (id) VALUES (?)").run("agreement-1");
+  db.prepare(
+    `INSERT INTO change_orders (
+      id, agreement_id, proposer_wallet_id, title, detail, scope,
+      status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+  ).run("change-1", "agreement-1", "wallet-client", "Extend review", "Add two review days.", "timeline", 100, 100);
+  const order = db.prepare("SELECT scope, status FROM change_orders WHERE id = ?").get("change-1") as Record<string, unknown>;
+  assert.equal(order.scope, "timeline");
+  assert.equal(order.status, "pending");
+  db.close();
+});
