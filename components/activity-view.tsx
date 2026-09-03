@@ -7,6 +7,9 @@ import {
   FileCheck2,
   Link2,
   LockKeyhole,
+  Search,
+  ShieldCheck,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -184,6 +187,8 @@ function describeActivity(activity: DashboardActivity): DisplayActivity {
 export function ActivityView() {
   const wallet = useWallet();
   const [filter, setFilter] = useState<(typeof filters)[number]>("all");
+  const [query, setQuery] = useState("");
+  const [proofsOnly, setProofsOnly] = useState(false);
   const [result, setResult] = useState<{
     address: string;
     activities: DisplayActivity[];
@@ -229,13 +234,22 @@ export function ActivityView() {
   const error = currentResult?.error ?? null;
   const loading = wallet.authenticated && !currentResult;
   const source = wallet.authenticated ? verified : demoActivities;
-  const filtered = useMemo(
-    () =>
-      filter === "all"
-        ? source
-        : source.filter((activity) => activity.type === filter),
-    [filter, source],
-  );
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    return source.filter((activity) => {
+      const matchesType = filter === "all" || activity.type === filter;
+      const matchesProof = !proofsOnly || Boolean(activity.proof);
+      const searchable = `${activity.title} ${activity.detail} ${activity.agreement}`.toLocaleLowerCase();
+      return matchesType && matchesProof && (!normalizedQuery || searchable.includes(normalizedQuery));
+    });
+  }, [filter, proofsOnly, query, source]);
+  const filtersActive = filter !== "all" || proofsOnly || Boolean(query.trim());
+
+  function clearFilters() {
+    setFilter("all");
+    setProofsOnly(false);
+    setQuery("");
+  }
 
   return (
     <>
@@ -278,19 +292,42 @@ export function ActivityView() {
           <span>{error} Demo events are not being substituted.</span>
         </div>
       )}
-      <div className="activity-filters" aria-label="Filter activity">
-        {filters.map((item) => (
+      <section className="activity-filter-panel" aria-label="Activity filters">
+        <div className="activity-filter-topline">
+          <label className="search-field activity-search">
+            <Search size={15} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search agreements or events" />
+          </label>
           <button
+            className={`proof-filter${proofsOnly ? " active" : ""}`}
             type="button"
-            className={filter === item ? "active" : ""}
-            aria-pressed={filter === item}
-            key={item}
-            onClick={() => setFilter(item)}
+            aria-pressed={proofsOnly}
+            onClick={() => setProofsOnly((current) => !current)}
           >
-            {item[0].toUpperCase() + item.slice(1)}
+            <ShieldCheck size={14} />
+            Arc verified only
           </button>
-        ))}
-      </div>
+        </div>
+        <div className="activity-filter-bottomline">
+          <div className="activity-filters" aria-label="Filter activity type">
+            {filters.map((item) => (
+              <button
+                type="button"
+                className={filter === item ? "active" : ""}
+                aria-pressed={filter === item}
+                key={item}
+                onClick={() => setFilter(item)}
+              >
+                {item[0].toUpperCase() + item.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div className="activity-filter-results">
+            <span>{filtered.length} {filtered.length === 1 ? "event" : "events"}</span>
+            {filtersActive && <button type="button" onClick={clearFilters}><X size={13} /> Clear</button>}
+          </div>
+        </div>
+      </section>
       <section className="panel activity-ledger">
         {filtered.length ? (
           filtered.map((activity) => {
