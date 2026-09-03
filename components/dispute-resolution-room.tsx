@@ -145,12 +145,10 @@ const demoEvents: DisputeEvent[] = [
 
 export function DisputeResolutionRoom({
   agreementRef,
-  currentRole,
   demo = false,
   milestones,
 }: {
   agreementRef: string;
-  currentRole: "client" | "provider";
   demo?: boolean;
   milestones: Array<{ position: number; title: string }>;
 }) {
@@ -158,7 +156,6 @@ export function DisputeResolutionRoom({
   const [disputes, setDisputes] = useState<DisputeRecord[]>(demo ? [demoDispute] : []);
   const [events, setEvents] = useState<DisputeEvent[]>(demo ? demoEvents : []);
   const [walletId, setWalletId] = useState<string | null>(demo ? "demo-provider" : null);
-  const [role, setRole] = useState(currentRole);
   const [selectedId, setSelectedId] = useState<string | null>(demo ? demoDispute.id : null);
   const [mode, setMode] = useState<RoomMode>("closed");
   const [loading, setLoading] = useState(!demo);
@@ -183,21 +180,22 @@ export function DisputeResolutionRoom({
     setDisputes(nextDisputes);
     setEvents(payload.events ?? []);
     setWalletId(payload.walletId ?? null);
-    setRole(payload.currentRole ?? currentRole);
     setSelectedId((value) => value && nextDisputes.some((item) => item.id === value) ? value : nextDisputes[0]?.id ?? null);
-  }, [agreementRef, currentRole, demo]);
+  }, [agreementRef, demo]);
 
   useEffect(() => {
     if (demo) return;
     let cancelled = false;
-    void load()
-      .catch((reason: unknown) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "The dispute room could not be loaded.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
+    const timer = window.setTimeout(() => {
+      void load()
+        .catch((reason: unknown) => {
+          if (!cancelled) setError(reason instanceof Error ? reason.message : "The dispute room could not be loaded.");
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 0);
+    return () => { cancelled = true; window.clearTimeout(timer); };
   }, [demo, load]);
 
   const selected = useMemo(

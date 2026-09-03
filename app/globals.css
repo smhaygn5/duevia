@@ -3283,7 +3283,8 @@ button:disabled,
 }
 
 .review-clock span,
-.review-clock small {
+.review-clock small,
+.review-clock p {
   color: var(--muted);
   font-size: 9px;
 }
@@ -3292,6 +3293,10 @@ button:disabled,
   color: var(--warning);
   font-size: 16px;
 }
+
+.review-clock.open strong { color: var(--success); }
+.review-clock.expired strong { color: var(--danger-strong); }
+.review-clock p { border-top: 1px solid var(--line); line-height: 1.45; margin: 4px 0 0; padding-top: 8px; }
 
 .review-layout,
 .recovery-layout {

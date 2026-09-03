@@ -28,6 +28,7 @@ import {
 import { isApprovalChecklistComplete } from "@/lib/agreements/approval-checklist";
 import { getSubmissionVersions } from "@/lib/agreements/versioned-deliverables";
 import { contentHashLabel } from "@/lib/agreements/delivery-integrity";
+import { reviewWindow } from "@/lib/agreements/review-window";
 import { useWallet } from "./wallet-provider";
 
 type ReviewState = "review" | "changes" | "approve";
@@ -48,6 +49,7 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
   const [busy, setBusy] = useState(false);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const isDemo = agreementRef.toUpperCase() === demoAgreement.publicRef;
   const currentMilestone = agreementData
     ? getCurrentMilestone(agreementData.milestones)
@@ -72,6 +74,11 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
         ),
       );
   }, [agreementRef, isDemo, wallet.authenticated]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function requestChanges(event: FormEvent) {
     event.preventDefault();
@@ -203,6 +210,13 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
           timeZone: "UTC",
         })
       : demoDelivery.reviewDeadline;
+  const reviewTiming = submission && currentMilestone
+    ? reviewWindow(submission.submitted_at, currentMilestone.review_window_seconds, now)
+    : {
+        state: "open" as const,
+        label: demoAgreement.reviewDeadline,
+        detail: "Sample review time for the guided demo.",
+      };
   const summary =
     submission?.note?.split("\n\n")[0] ?? demoDelivery.summary;
   const currentDeliverables = isDemo
@@ -368,10 +382,11 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
             settlement.
           </p>
         </div>
-        <div className="review-clock">
+        <div className={`review-clock ${reviewTiming.state}`}>
           <span>Review window</span>
-          <strong>{isDemo ? demoAgreement.reviewDeadline : "Active"}</strong>
+          <strong>{reviewTiming.label}</strong>
           <small>Closes {closesAt}</small>
+          <p>{reviewTiming.detail}</p>
         </div>
       </div>
 

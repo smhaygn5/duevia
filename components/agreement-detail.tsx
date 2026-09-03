@@ -344,7 +344,6 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
           {!isDemo && <ChangeOrderPanel agreementRef={detail.publicRef} />}
           <DisputeResolutionRoom
             agreementRef={detail.publicRef}
-            currentRole={detail.currentRole}
             demo={isDemo}
             milestones={detail.milestones.map(({ position, title }) => ({ position, title }))}
           />
