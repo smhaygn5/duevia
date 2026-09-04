@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
           agreements.counterparty_name,
           agreements.creator_role,
           agreements.created_at,
+          agreements.updated_at,
           COUNT(milestones.id) AS milestone_count
         FROM agreements
         LEFT JOIN milestones ON milestones.agreement_id = agreements.id
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
         counterparty_name: string;
         creator_role: "client" | "provider";
         created_at: number;
+        updated_at: number;
         milestone_count: number;
       }>();
 

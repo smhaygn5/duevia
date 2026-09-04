@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight, Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { formatUnits } from "viem";
@@ -16,12 +16,16 @@ type ApiAgreement = {
   counterparty_name: string;
   creator_role: "client" | "provider";
   milestone_count: number;
+  updated_at: number;
 };
+
+type AgreementSort = "recent" | "value" | "title";
 
 export function AgreementsList() {
   const wallet = useWallet();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
+  const [sort, setSort] = useState<AgreementSort>("recent");
   const [result, setResult] = useState<{
     address: string;
     agreements: ApiAgreement[];
@@ -63,6 +67,8 @@ export function AgreementsList() {
               .map((word) => word[0]?.toUpperCase() + word.slice(1))
               .join(" "),
             milestones: agreement.milestone_count,
+            amountMinor: BigInt(agreement.total_amount_minor),
+            updatedAt: agreement.updated_at,
             saved: true,
           }))
         : demoAgreements.map((agreement) => ({
@@ -75,20 +81,33 @@ export function AgreementsList() {
             total: agreement.total,
             status: agreement.status,
             milestones: 3,
+            amountMinor: BigInt(agreement.total.replaceAll(",", "")) * 1_000_000n,
+            updatedAt: 0,
             saved: false,
           })),
     [currentResult, wallet.authenticated],
   );
 
-  const visible = all.filter((agreement) => {
-    const searchMatch = `${agreement.title} ${agreement.ref} ${agreement.counterparty}`
-      .toLowerCase()
-      .includes(query.toLowerCase());
-    const filterMatch =
-      filter === "All" ||
-      agreement.status.toLowerCase().includes(filter.toLowerCase());
-    return searchMatch && filterMatch;
-  });
+  const visible = useMemo(() => all
+    .filter((agreement) => {
+      const searchMatch = `${agreement.title} ${agreement.ref} ${agreement.counterparty}`
+        .toLowerCase()
+        .includes(query.toLowerCase());
+      const filterMatch = filter === "All" || agreement.status.toLowerCase().includes(filter.toLowerCase());
+      return searchMatch && filterMatch;
+    })
+    .sort((left, right) => {
+      if (sort === "value") return left.amountMinor === right.amountMinor ? 0 : left.amountMinor > right.amountMinor ? -1 : 1;
+      if (sort === "title") return left.title.localeCompare(right.title);
+      return right.updatedAt - left.updatedAt;
+    }), [all, filter, query, sort]);
+  const filtersActive = filter !== "All" || Boolean(query.trim()) || sort !== "recent";
+
+  function clearOrganizer() {
+    setQuery("");
+    setFilter("All");
+    setSort("recent");
+  }
 
   return (
     <>
@@ -130,6 +149,19 @@ export function AgreementsList() {
             </button>
           ))}
         </div>
+      </div>
+      <div className="agreement-organizer-meta">
+        <span>{loading ? "Loading agreements" : `${visible.length} ${visible.length === 1 ? "agreement" : "agreements"} shown`}</span>
+        <label className="agreement-sort">
+          <SlidersHorizontal size={14} />
+          <span>Sort</span>
+          <select value={sort} onChange={(event) => setSort(event.target.value as AgreementSort)} aria-label="Sort agreements">
+            <option value="recent">Most recent</option>
+            <option value="value">Highest value</option>
+            <option value="title">A to Z</option>
+          </select>
+        </label>
+        {filtersActive && <button className="agreement-clear" type="button" onClick={clearOrganizer}><X size={13} /> Clear organizer</button>}
       </div>
 
       <div className="agreement-card-list">

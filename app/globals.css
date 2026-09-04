@@ -1842,6 +1842,20 @@ button:disabled,
   margin-bottom: 18px;
 }
 
+.agreement-organizer-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin: -6px 0 17px;
+}
+
+.agreement-organizer-meta > span { color: var(--muted); font-size: 10px; margin-right: auto; }
+.agreement-sort { align-items: center; background: var(--wash-035); border: 1px solid var(--line); border-radius: 9px; color: var(--muted); display: inline-flex; font-size: 10px; gap: 6px; min-height: 34px; padding: 0 8px; }
+.agreement-sort select { appearance: none; background: transparent; border: 0; color: var(--foreground); cursor: pointer; font: inherit; font-weight: 650; outline: 0; padding-right: 3px; }
+.agreement-clear { align-items: center; background: transparent; border: 0; color: var(--accent-bright); cursor: pointer; display: inline-flex; font-size: 10px; gap: 5px; min-height: 32px; padding: 0 3px; }
+
 .search-field {
   align-items: center;
   background: var(--wash-035);
