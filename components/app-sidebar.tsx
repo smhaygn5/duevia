@@ -3,6 +3,7 @@
 import {
   Activity,
   BellRing,
+  CalendarDays,
   FileText,
   ReceiptText,
   LayoutDashboard,
@@ -17,6 +18,7 @@ const links = [
   { href: "/app", label: "Overview", icon: LayoutDashboard },
   { href: "/app/agreements", label: "Agreements", icon: FileText },
   { href: "/app/activity", label: "Activity", icon: Activity },
+  { href: "/app/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/app/actions", label: "Action Center", icon: BellRing },
   { href: "/app/receipts", label: "Receipts", icon: ReceiptText },
   { href: "/app/settings", label: "Settings", icon: Settings },

@@ -3824,6 +3824,42 @@ button:disabled,
   padding: 8px 21px;
 }
 
+.schedule-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.schedule-toolbar > div { background: var(--wash-025); border: 1px solid var(--line); border-radius: 11px; display: flex; gap: 3px; padding: 4px; }
+.schedule-toolbar button { background: transparent; border: 0; border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 11px; min-height: 32px; padding: 0 12px; }
+.schedule-toolbar button.active { background: var(--wash-075); color: var(--foreground); }
+.schedule-toolbar > span { color: var(--muted); font-size: 10px; }
+.milestone-schedule { display: grid; gap: 17px; }
+.schedule-day { background: var(--panel-glass); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.schedule-day > header { align-items: center; border-bottom: 1px solid var(--line); display: flex; gap: 8px; padding-bottom: 12px; }
+.schedule-day > header svg { color: var(--accent-bright); }
+.schedule-day h2 { font-size: 0.91rem; margin: 0; }
+.schedule-day header span { color: var(--muted); font-size: 0.7rem; margin-left: auto; }
+.schedule-day > div { display: grid; gap: 8px; margin-top: 12px; }
+.schedule-item { align-items: center; border: 1px solid var(--line); border-radius: 11px; color: inherit; display: grid; gap: 11px; grid-template-columns: 34px minmax(0, 1fr) auto; padding: 11px; text-decoration: none; }
+.schedule-item:hover { border-color: color-mix(in srgb, var(--accent) 48%, var(--line)); }
+.schedule-item > span { align-items: center; background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 9px; color: var(--accent-bright); display: flex; height: 34px; justify-content: center; width: 34px; }
+.schedule-item.medium > span { background: color-mix(in srgb, #e8a249 14%, transparent); color: #bd7419; }
+.schedule-item.high > span { background: color-mix(in srgb, #df6674 14%, transparent); color: #c34355; }
+.schedule-item small, .schedule-item p { color: var(--muted); display: block; font-size: 0.71rem; margin: 0; }
+.schedule-item strong { display: block; font-size: 0.88rem; margin: 3px 0; }
+.schedule-item time { color: var(--muted); font-size: 0.7rem; white-space: nowrap; }
+
+@media (max-width: 620px) {
+  .schedule-toolbar { align-items: stretch; flex-direction: column; }
+  .schedule-toolbar > div { overflow-x: auto; }
+  .schedule-toolbar button { flex: 1 0 auto; }
+  .schedule-item { grid-template-columns: 34px minmax(0, 1fr); }
+  .schedule-item time { grid-column: 2; }
+}
+
 .activity-ledger article {
   align-items: start;
   border-top: 1px solid var(--line);
