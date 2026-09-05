@@ -2,18 +2,27 @@
 
 import { Bell, Check, Globe2, ShieldCheck, WalletCards } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { defaultWorkspacePreferences, loadWorkspacePreferences, saveWorkspacePreferences, type TimeReference } from "@/lib/workspace-preferences";
 import { AppHeader } from "./app-header";
 import { useWallet } from "./wallet-provider";
 
 export function SettingsForm() {
   const wallet = useWallet();
-  const [workspaceName, setWorkspaceName] = useState("Duevia workspace");
-  const [email, setEmail] = useState("");
-  const [alerts, setAlerts] = useState("important");
+  const [preferences] = useState(() => loadWorkspacePreferences());
+  const [workspaceName, setWorkspaceName] = useState(preferences.workspaceName);
+  const [email, setEmail] = useState(preferences.email);
+  const [alerts, setAlerts] = useState(preferences.alerts);
+  const [timeReference, setTimeReference] = useState<TimeReference>(preferences.timeReference);
   const [saved, setSaved] = useState(false);
 
   function save(event: FormEvent) {
     event.preventDefault();
+    saveWorkspacePreferences({
+      workspaceName: workspaceName.trim() || defaultWorkspacePreferences.workspaceName,
+      email: email.trim(),
+      alerts: alerts as "important" | "all" | "none",
+      timeReference,
+    });
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1_800);
   }
@@ -55,6 +64,28 @@ export function SettingsForm() {
               <small>Only milestone and settlement alerts are sent.</small>
             </label>
           </div>
+        </section>
+
+        <section className="settings-section">
+          <div className="settings-copy">
+            <span className="settings-icon"><Globe2 size={19} /></span>
+            <div>
+              <h2>Display</h2>
+              <p>Choose the time reference used in your milestone schedule.</p>
+            </div>
+          </div>
+          <fieldset className="settings-fields notification-options">
+            <legend className="sr-only">Time reference</legend>
+            {[
+              ["utc", "UTC", "Keep every milestone deadline in the Arc Testnet reference time."],
+              ["local", "Local time", "Show schedule times in this browser’s local time zone."],
+            ].map(([value, label, help]) => (
+              <label key={value}>
+                <input type="radio" name="timeReference" value={value} checked={timeReference === value} onChange={() => setTimeReference(value as TimeReference)} />
+                <span><strong>{label}</strong><small>{help}</small></span>
+              </label>
+            ))}
+          </fieldset>
         </section>
 
         <section className="settings-section">
@@ -120,7 +151,7 @@ export function SettingsForm() {
                   name="alerts"
                   value={value}
                   checked={alerts === value}
-                  onChange={(event) => setAlerts(event.target.value)}
+                  onChange={(event) => setAlerts(event.target.value as "important" | "all" | "none")}
                 />
                 <span>
                   <strong>{label}</strong>
@@ -136,7 +167,7 @@ export function SettingsForm() {
             {saved && (
               <>
                 <Check size={15} />
-                Preferences saved for this preview
+                Preferences saved on this device
               </>
             )}
           </span>
