@@ -4,6 +4,7 @@ import {
   ArrowDownToLine,
   CheckCircle2,
   Clock3,
+  Download,
   FileCheck2,
   Link2,
   LockKeyhole,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/dashboard-client";
 import { AppHeader } from "./app-header";
 import { useWallet } from "./wallet-provider";
+import { activityCsv } from "@/lib/agreements/activity-export";
 
 type ActivityType =
   | "agreement"
@@ -251,6 +253,17 @@ export function ActivityView() {
     setQuery("");
   }
 
+  function exportFilteredActivity() {
+    const csv = activityCsv(filtered);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `duevia-activity-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <>
       <AppHeader
@@ -260,6 +273,12 @@ export function ActivityView() {
           wallet.authenticated
             ? "Your private agreement events, with Arc proofs where a transaction exists."
             : "A sample timeline showing how agreements, delivery, and settlement proofs work."
+        }
+        action={
+          <button className="button button-secondary" type="button" onClick={exportFilteredActivity} disabled={!filtered.length}>
+            <Download size={16} />
+            Export CSV
+          </button>
         }
       />
       {!wallet.authenticated && (
