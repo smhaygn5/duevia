@@ -5260,6 +5260,18 @@ button:disabled,
   margin-top: 17px;
 }
 
+.action-center-list > .action-center-filters {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 17px;
+}
+
+.action-center-filters button { background: transparent; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); cursor: pointer; font-size: 0.7rem; padding: 6px 9px; }
+.action-center-filters button.active { background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); color: var(--accent-bright); }
+.action-center-filters > span { color: var(--muted); font-size: 0.68rem; margin-left: auto; }
+
 .action-center-row {
   align-items: center;
   border: 1px solid var(--line);

@@ -13,6 +13,8 @@ import { AppHeader } from "./app-header";
 import { useWallet } from "./wallet-provider";
 
 const seenKey = "duevia-action-center-seen";
+const actionFilters = ["all", "unread", "review", "revision", "deadline"] as const;
+type ActionFilter = (typeof actionFilters)[number];
 
 const demoItems: ActionCenterInput[] = [
   { id: "demo-review", type: "review", agreementRef: demoAgreement.publicRef, title: "Review Product build", detail: "A sample delivery package is ready for your review.", occurredAt: Date.parse("2026-08-16T10:42:00.000Z"), href: `/app/agreements/${demoAgreement.publicRef.toLowerCase()}/review` },
@@ -46,6 +48,7 @@ export function ActionCenter() {
   const wallet = useWallet();
   const [dashboard, setDashboard] = useState<DashboardPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<ActionFilter>("all");
   const [seen, setSeen] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -71,6 +74,10 @@ export function ActionCenter() {
     [dashboard, wallet.authenticated],
   );
   const unread = items.filter((item) => !seen.includes(item.id)).length;
+  const visibleItems = useMemo(
+    () => items.filter((item) => filter === "all" || (filter === "unread" ? !seen.includes(item.id) : item.type === filter)),
+    [filter, items, seen],
+  );
 
   function markSeen(id: string) {
     setSeen((current) => {
@@ -93,12 +100,16 @@ export function ActionCenter() {
       {error && <div className="workspace-disclosure workspace-disclosure-error"><strong>Action items are temporarily unavailable</strong><span>{error}</span></div>}
       <section className="panel action-center-list">
         <header className="panel-header"><div><h2>Needs your attention</h2><p>Opening an item keeps its read status on this device.</p></div><BellRing size={19} /></header>
+        <div className="action-center-filters" aria-label="Filter action items">
+          {actionFilters.map((item) => <button key={item} type="button" className={filter === item ? "active" : ""} aria-pressed={filter === item} onClick={() => setFilter(item)}>{item === "all" ? "All" : item === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : item[0].toUpperCase() + item.slice(1)}</button>)}
+          <span>{visibleItems.length} shown</span>
+        </div>
         <div>
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const Icon = item.type === "review" ? FileCheck2 : item.type === "revision" ? RotateCcw : AlertTriangle;
             return <Link className={`action-center-row ${seen.includes(item.id) ? "seen" : ""}`} href={item.href} key={item.id} onClick={() => markSeen(item.id)}><span className={item.type}><Icon size={17} /></span><div><small>{item.agreementRef} · {item.type === "review" ? "Review" : item.type === "revision" ? "Revision" : "Deadline"}</small><strong>{item.title}</strong><p>{item.detail}</p></div>{!seen.includes(item.id) && <i aria-label="Unread action" />}</Link>;
           })}
-          {!items.length && !error && <div className="risk-empty"><CheckCircle2 size={17} /> No action items need attention right now.</div>}
+          {!visibleItems.length && !error && <div className="risk-empty"><CheckCircle2 size={17} /> {items.length ? "No action items match this filter." : "No action items need attention right now."}</div>}
         </div>
       </section>
     </>
