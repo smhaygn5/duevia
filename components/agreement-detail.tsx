@@ -8,6 +8,7 @@ import {
   Clock3,
   ExternalLink,
   FileText,
+  ListChecks,
   LockKeyhole,
 } from "lucide-react";
 import Link from "next/link";
@@ -225,6 +226,13 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
   ) : (
     <Clock3 size={22} />
   );
+  const nextStep = canFund
+    ? "Client funding"
+    : needsReview
+      ? "Client review"
+      : canSubmit
+        ? "Provider delivery"
+        : "Counterparty action";
 
   return (
     <>
@@ -442,6 +450,25 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
               <ArrowRight size={13} />
             </Link>
           </div>
+          {current && (
+            <section className="agreement-snapshot" aria-label="Agreement snapshot">
+              <header>
+                <span><ListChecks size={14} /> Agreement snapshot</span>
+                <small>Live workspace view</small>
+              </header>
+              <div className="agreement-snapshot-current">
+                <span>Current stage</span>
+                <strong>{String(current.position).padStart(2, "0")} of {String(detail.milestones.length).padStart(2, "0")}</strong>
+                <p>{current.title}</p>
+              </div>
+              <dl>
+                <div><dt>Stage status</dt><dd>{titleCase(current.status)}</dd></div>
+                <div><dt>Due date</dt><dd>{current.due}</dd></div>
+                <div><dt>Review window</dt><dd>{current.reviewDays} day{current.reviewDays === 1 ? "" : "s"}</dd></div>
+                <div><dt>Next step</dt><dd>{nextStep}</dd></div>
+              </dl>
+            </section>
+          )}
         </aside>
       </section>
     </>
