@@ -4049,7 +4049,20 @@ button:disabled,
 .archive-heading > div > p:last-child { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 13px 0 0; }
 .settlement-archive-list { margin-top: 17px; padding: 20px; }
 .settlement-archive-list > header > svg { color: var(--success); }
-.settlement-archive-list > div { display: grid; margin-top: 16px; }
+.settlement-archive-rows { display: grid; margin-top: 16px; }
+.receipt-archive-filters { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.receipt-archive-search { align-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; color: var(--muted); display: flex; flex: 1 1 210px; gap: 7px; min-height: 36px; padding: 0 10px; }
+.receipt-archive-search:focus-within { border-color: var(--accent); color: var(--accent-bright); }
+.receipt-archive-search input { background: transparent; border: 0; color: var(--text); font: inherit; font-size: 10px; min-width: 0; outline: 0; width: 100%; }
+.receipt-archive-search input::placeholder { color: var(--muted); }
+.receipt-archive-tabs { display: flex; gap: 5px; }
+.receipt-archive-tabs button, .receipt-archive-clear { background: transparent; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); cursor: pointer; font-size: 9px; min-height: 30px; padding: 0 9px; }
+.receipt-archive-tabs button.active { background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); color: var(--accent-bright); }
+.receipt-archive-proof { align-items: center; color: var(--success); display: flex; font-size: 9px; gap: 5px; }
+.receipt-archive-clear { align-items: center; color: var(--accent-bright); display: inline-flex; gap: 4px; }
+.receipt-archive-results { color: var(--muted); display: flex; font-size: 9px; gap: 5px; margin-top: 12px; }
+.receipt-archive-empty { border-top: 1px solid var(--line); color: var(--muted); display: grid; font-size: 10px; gap: 5px; padding: 22px 0 5px; }
+.receipt-archive-empty strong { color: var(--text); font-size: 11px; }
 .settlement-archive-row { align-items: center; border-top: 1px solid var(--line); display: grid; gap: 12px; grid-template-columns: 34px minmax(0, 1fr) auto 16px; padding: 15px 0; }
 .settlement-archive-row:first-child { border-top: 0; }
 .settlement-archive-row > span { align-items: center; background: rgba(98, 227, 173, 0.1); border-radius: 10px; color: var(--success); display: flex; height: 34px; justify-content: center; width: 34px; }

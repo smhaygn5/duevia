@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
           milestone: row.milestone_position && row.milestone_title ? `${String(row.milestone_position).padStart(2, "0")} · ${row.milestone_title}` : "Agreement",
           amount: `${Number(formatUnits(BigInt(amountMinor), 6)).toLocaleString()} USDC`,
           occurredAt: row.occurred_at,
+          kind: row.type,
         };
       }),
     });
