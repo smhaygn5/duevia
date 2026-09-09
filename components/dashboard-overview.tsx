@@ -131,6 +131,17 @@ export function DashboardOverview() {
       ? dashboard!.settlementForecast
       : demoSettlementForecast,
   });
+  const settlementForecastItems = isVerified
+    ? dashboard!.settlementForecast
+    : demoSettlementForecast;
+  const reviewForecast = settlementForecastItems.filter(
+    (item) => item.label === "In review",
+  );
+  const deliveryForecast = settlementForecastItems.filter(
+    (item) => item.label !== "In review",
+  );
+  const forecastTotal = (items: typeof settlementForecastItems) =>
+    items.reduce((total, item) => total + BigInt(item.amountMinor), 0n).toString();
 
   return (
     <>
@@ -274,8 +285,20 @@ export function DashboardOverview() {
               </div>
               <Clock3 size={18} />
             </header>
+            <div className="settlement-readiness" aria-label="Settlement readiness">
+              <article className="review">
+                <span>Ready for review</span>
+                <strong>{reviewForecast.length}</strong>
+                <small>{formatUsdc(forecastTotal(reviewForecast))} USDC waiting on client review</small>
+              </article>
+              <article>
+                <span>Delivery or revision</span>
+                <strong>{deliveryForecast.length}</strong>
+                <small>{formatUsdc(forecastTotal(deliveryForecast))} USDC still needs provider work</small>
+              </article>
+            </div>
             <div className="settlement-forecast-list">
-              {(isVerified ? dashboard!.settlementForecast : demoSettlementForecast).map((item) => (
+              {settlementForecastItems.map((item) => (
                 <Link className="settlement-forecast-row" key={`${item.agreementRef}-${item.milestoneTitle}`} href={`/app/agreements/${item.agreementRef.toLowerCase()}`}>
                   <span className={item.label === "In review" ? "forecast-state review" : "forecast-state"}><Clock3 size={15} /></span>
                   <div><small>{item.agreementRef} · {item.label}</small><strong>{item.milestoneTitle}</strong><p>{item.agreementTitle}</p></div>
