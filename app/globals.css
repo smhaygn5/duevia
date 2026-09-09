@@ -1923,23 +1923,31 @@ button:disabled,
 }
 
 .agreement-list-card {
-  align-items: center;
   background: var(--panel-glass);
   border: 1px solid var(--line);
   border-radius: 14px;
+  position: relative;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.agreement-list-card-link {
+  align-items: center;
+  color: inherit;
   display: grid;
   gap: 20px;
   grid-template-columns: minmax(190px, 1.25fr) minmax(300px, 1fr) auto auto;
   padding: 18px 19px;
-  transition:
-    border-color 160ms ease,
-    transform 160ms ease;
+  text-decoration: none;
 }
 
 .agreement-list-card:hover {
   border-color: var(--line-strong);
   transform: translateY(-1px);
 }
+.agreement-list-card.starred { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); }
+.agreement-star { align-items: center; background: transparent; border: 0; border-radius: 8px; color: var(--muted); cursor: pointer; display: inline-flex; height: 32px; justify-content: center; position: absolute; right: 8px; top: 8px; width: 32px; }
+.agreement-star:hover, .agreement-star[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-bright); }
+.agreement-star:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .agreement-list-main {
   display: grid;
@@ -1971,7 +1979,7 @@ button:disabled,
   font-size: 11px;
 }
 
-.agreement-list-card > svg {
+.agreement-list-card-link > svg {
   color: var(--muted);
 }
 
@@ -4660,11 +4668,11 @@ button:disabled,
     grid-template-columns: minmax(0, 1fr) 390px;
   }
 
-  .agreement-list-card {
+  .agreement-list-card-link {
     grid-template-columns: minmax(170px, 1fr) minmax(280px, 1fr) auto;
   }
 
-  .agreement-list-card > svg {
+  .agreement-list-card-link > svg {
     display: none;
   }
 }
@@ -4776,7 +4784,7 @@ button:disabled,
     width: 100%;
   }
 
-  .agreement-list-card {
+  .agreement-list-card-link {
     grid-template-columns: 1fr auto;
   }
 
