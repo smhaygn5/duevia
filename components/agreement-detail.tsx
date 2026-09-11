@@ -6,6 +6,7 @@ import {
   Check,
   Circle,
   Clock3,
+  Copy,
   ExternalLink,
   FileText,
   ListChecks,
@@ -82,6 +83,19 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
   );
   const [loading, setLoading] = useState(!isDemo);
   const [error, setError] = useState<string | null>(null);
+  const [proofCopyState, setProofCopyState] = useState<"idle" | "copied" | "error">("idle");
+
+  async function copyProofLink(publicRef: string) {
+    try {
+      const link = new URL(publicProofUrl(publicRef), window.location.origin).toString();
+      await navigator.clipboard.writeText(link);
+      setProofCopyState("copied");
+      window.setTimeout(() => setProofCopyState("idle"), 1_800);
+    } catch {
+      setProofCopyState("error");
+      window.setTimeout(() => setProofCopyState("idle"), 3_500);
+    }
+  }
 
   useEffect(() => {
     if (isDemo) return;
@@ -442,6 +456,10 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
               Public proof page
               <ExternalLink size={13} />
             </Link>
+            <button className={`public-proof-copy${proofCopyState === "error" ? " error" : ""}`} type="button" onClick={() => void copyProofLink(detail.publicRef)}>
+              {proofCopyState === "copied" ? <Check size={13} /> : <Copy size={13} />}
+              {proofCopyState === "copied" ? "Proof link copied" : proofCopyState === "error" ? "Copy unavailable" : "Copy proof link"}
+            </button>
             <Link
               className="recovery-link"
               href={`/app/agreements/${detail.publicRef.toLowerCase()}/recovery`}

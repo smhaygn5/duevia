@@ -2627,13 +2627,21 @@ button:disabled,
   font-size: 10px;
 }
 
-.action-facts a {
+.action-facts a,
+.action-facts .public-proof-copy {
   align-items: center;
+  background: transparent;
+  border: 0;
   color: var(--accent-bright);
+  cursor: pointer;
   display: flex;
+  font: inherit;
   font-size: 10px;
   gap: 6px;
+  padding: 0;
 }
+
+.action-facts .public-proof-copy.error { color: var(--danger); }
 
 .recovery-link {
   border-top: 1px solid var(--line);
