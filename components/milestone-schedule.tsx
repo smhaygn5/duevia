@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { demoAgreement } from "@/lib/demo-data";
 import { type DeadlineRisk } from "@/lib/agreements/deadline-risk";
-import { filterScheduledMilestones, groupMilestonesByDate, type ScheduleFilter } from "@/lib/agreements/milestone-schedule";
+import { filterScheduledMilestones, filterScheduleWindow, groupMilestonesByDate, type ScheduleFilter, type ScheduleWindow } from "@/lib/agreements/milestone-schedule";
 import { loadVerifiedDashboard } from "@/lib/dashboard-client";
 import { AppHeader } from "./app-header";
 import { useWallet } from "./wallet-provider";
@@ -18,6 +18,7 @@ const demoSchedule: DeadlineRisk[] = [
 const emptySchedule: DeadlineRisk[] = [];
 
 const filterLabels: Record<ScheduleFilter, string> = { all: "All milestones", attention: "Needs attention", upcoming: "Upcoming" };
+const windowLabels: Record<ScheduleWindow, string> = { all: "Any time", next: "Next 7 days", following: "Following 7 days", later: "Later" };
 
 function subscribeToPreferences(onStoreChange: () => void) {
   window.addEventListener(preferencesChangedEvent, onStoreChange);
@@ -33,6 +34,7 @@ export function MilestoneSchedule() {
   const wallet = useWallet();
   const timeReference = useSyncExternalStore<TimeReference>(subscribeToPreferences, timeReferenceSnapshot, () => "utc");
   const [filter, setFilter] = useState<ScheduleFilter>("all");
+  const [windowFilter, setWindowFilter] = useState<ScheduleWindow>("all");
   const [result, setResult] = useState<{ address: string; items: DeadlineRisk[]; error: string | null } | null>(null);
 
   useEffect(() => {
@@ -47,7 +49,8 @@ export function MilestoneSchedule() {
 
   const current = wallet.authenticated && wallet.address === result?.address ? result : null;
   const source = wallet.authenticated ? current?.items ?? emptySchedule : demoSchedule;
-  const groups = useMemo(() => groupMilestonesByDate(filterScheduledMilestones(source, filter)), [filter, source]);
+  const scheduleItems = useMemo(() => filterScheduleWindow(filterScheduledMilestones(source, filter), windowFilter), [filter, source, windowFilter]);
+  const groups = useMemo(() => groupMilestonesByDate(scheduleItems), [scheduleItems]);
   const loading = wallet.authenticated && !current;
 
   return <>
@@ -56,7 +59,8 @@ export function MilestoneSchedule() {
     {wallet.authenticated && current?.error && <div className="workspace-disclosure workspace-disclosure-error"><strong>Schedule is temporarily unavailable</strong><span>{current.error}</span></div>}
     <section className="schedule-toolbar" aria-label="Schedule filters">
       <div>{(Object.keys(filterLabels) as ScheduleFilter[]).map((item) => <button key={item} type="button" className={filter === item ? "active" : ""} aria-pressed={filter === item} onClick={() => setFilter(item)}>{filterLabels[item]}</button>)}</div>
-      <span>{loading ? "Loading schedule" : `${source.length} open ${source.length === 1 ? "milestone" : "milestones"} · ${timeReference === "utc" ? "UTC" : "Local time"}`}</span>
+      <div className="schedule-window-tabs" role="group" aria-label="Filter milestones by time window">{(Object.keys(windowLabels) as ScheduleWindow[]).map((item) => <button key={item} type="button" className={windowFilter === item ? "active" : ""} aria-pressed={windowFilter === item} onClick={() => setWindowFilter(item)}>{windowLabels[item]}</button>)}</div>
+      <span>{loading ? "Loading schedule" : `${scheduleItems.length} open ${scheduleItems.length === 1 ? "milestone" : "milestones"} · ${timeReference === "utc" ? "UTC" : "Local time"}`}</span>
     </section>
     <section className="milestone-schedule" aria-label="Milestone schedule">
       {groups.map((group) => <div className="schedule-day" key={group.date}><header><CalendarDays size={16} /><h2>{formatWorkspaceDate(group.date, timeReference)}</h2><span>{group.items.length} item{group.items.length === 1 ? "" : "s"}</span></header><div>{group.items.map((item) => <Link href={`/app/agreements/${item.agreementRef.toLowerCase()}`} className={`schedule-item ${item.level}`} key={`${item.agreementRef}-${item.title}`}><span>{item.level === "high" ? <AlertTriangle size={17} /> : item.level === "medium" ? <Clock3 size={17} /> : <CheckCircle2 size={17} />}</span><div><small>{item.agreementRef} · {item.label}</small><strong>{item.title}</strong><p>{item.action}</p></div><time>{formatWorkspaceTime(item.dueAt, timeReference)} {timeReference === "utc" ? "UTC" : "local"}</time></Link>)}</div></div>)}

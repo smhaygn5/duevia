@@ -3877,6 +3877,7 @@ button:disabled,
 .schedule-toolbar > div { background: var(--wash-025); border: 1px solid var(--line); border-radius: 11px; display: flex; gap: 3px; padding: 4px; }
 .schedule-toolbar button { background: transparent; border: 0; border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 11px; min-height: 32px; padding: 0 12px; }
 .schedule-toolbar button.active { background: var(--wash-075); color: var(--foreground); }
+.schedule-window-tabs { margin-left: auto; }
 .schedule-toolbar > span { color: var(--muted); font-size: 10px; }
 .milestone-schedule { display: grid; gap: 17px; }
 .schedule-day { background: var(--panel-glass); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
@@ -3897,6 +3898,7 @@ button:disabled,
 @media (max-width: 620px) {
   .schedule-toolbar { align-items: stretch; flex-direction: column; }
   .schedule-toolbar > div { overflow-x: auto; }
+  .schedule-window-tabs { margin-left: 0; }
   .schedule-toolbar button { flex: 1 0 auto; }
   .schedule-item { grid-template-columns: 34px minmax(0, 1fr); }
   .schedule-item time { grid-column: 2; }
