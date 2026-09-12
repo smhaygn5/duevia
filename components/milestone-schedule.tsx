@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3 } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { demoAgreement } from "@/lib/demo-data";
@@ -10,6 +10,7 @@ import { loadVerifiedDashboard } from "@/lib/dashboard-client";
 import { AppHeader } from "./app-header";
 import { useWallet } from "./wallet-provider";
 import { formatWorkspaceDate, formatWorkspaceTime, loadWorkspacePreferences, preferencesChangedEvent, type TimeReference } from "@/lib/workspace-preferences";
+import { milestoneScheduleCalendar } from "@/lib/agreements/schedule-calendar";
 
 const demoSchedule: DeadlineRisk[] = [
   { agreementRef: demoAgreement.publicRef, title: "Product build", dueAt: Date.parse("2026-09-05T12:00:00.000Z"), state: "submitted", currentRole: "client", level: "medium", label: "Due within 48 hours", action: "Review the delivery package" },
@@ -53,8 +54,21 @@ export function MilestoneSchedule() {
   const groups = useMemo(() => groupMilestonesByDate(scheduleItems), [scheduleItems]);
   const loading = wallet.authenticated && !current;
 
+  function downloadCalendar() {
+    const calendar = milestoneScheduleCalendar(scheduleItems);
+    const blob = new Blob([calendar], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "duevia-milestones.ics";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return <>
-    <AppHeader eyebrow={wallet.authenticated ? "Arc workspace schedule" : "Demo workspace schedule"} title="Milestone Schedule" description={wallet.authenticated ? "A date ordered view of the delivery and review work across your agreements." : "A sample schedule showing when each protected milestone needs attention."} />
+    <AppHeader eyebrow={wallet.authenticated ? "Arc workspace schedule" : "Demo workspace schedule"} title="Milestone Schedule" description={wallet.authenticated ? "A date ordered view of the delivery and review work across your agreements." : "A sample schedule showing when each protected milestone needs attention."} action={<button type="button" className="button button-quiet schedule-export" onClick={downloadCalendar} disabled={!scheduleItems.length}><Download size={16} /> Export calendar</button>} />
     {!wallet.authenticated && <div className="workspace-disclosure workspace-disclosure-demo"><strong>Guided demo · no real deadlines</strong><span>These entries are illustrative. Sign in to view the milestones stored in your own agreements.</span></div>}
     {wallet.authenticated && current?.error && <div className="workspace-disclosure workspace-disclosure-error"><strong>Schedule is temporarily unavailable</strong><span>{current.error}</span></div>}
     <section className="schedule-toolbar" aria-label="Schedule filters">
