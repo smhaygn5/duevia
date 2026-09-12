@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   FileCheck2,
   LockKeyhole,
+  RefreshCw,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -54,13 +55,15 @@ export function DashboardOverview() {
     dashboard: DashboardPayload | null;
     error: string | null;
   } | null>(null);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!wallet.authenticated || !wallet.address) return;
 
     let active = true;
     const address = wallet.address;
-    void loadVerifiedDashboard()
+    void loadVerifiedDashboard(refreshVersion > 0)
       .then((payload) => {
         if (active) {
           setResult({ address, dashboard: payload, error: null });
@@ -77,12 +80,19 @@ export function DashboardOverview() {
                 : "Unable to load the workspace.",
           });
         }
-      });
+      })
+      .finally(() => { if (active) setRefreshing(false); });
 
     return () => {
       active = false;
     };
-  }, [wallet.address, wallet.authenticated]);
+  }, [refreshVersion, wallet.address, wallet.authenticated]);
+
+  function refreshDashboard() {
+    if (!wallet.authenticated || refreshing) return;
+    setRefreshing(true);
+    setRefreshVersion((current) => current + 1);
+  }
 
   const currentResult =
     wallet.authenticated && wallet.address === result?.address ? result : null;
@@ -153,11 +163,12 @@ export function DashboardOverview() {
             ? "Your saved agreements and verified Arc Testnet activity."
             : "Explore a complete milestone escrow journey with sample, no-value data."
         }
-        action={
+        action={<>
+          {wallet.authenticated && <button className="button button-quiet dashboard-refresh" type="button" onClick={refreshDashboard} disabled={refreshing} aria-label="Refresh verified workspace"><RefreshCw className={refreshing ? "is-spinning" : ""} size={16} />{refreshing ? "Refreshing" : "Refresh"}</button>}
           <Link className="button button-primary" href="/app/agreements/new">
             Create agreement
           </Link>
-        }
+        </>}
       />
 
       {!wallet.authenticated && (

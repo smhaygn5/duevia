@@ -1133,6 +1133,11 @@ button:disabled,
   gap: 10px;
 }
 
+.dashboard-refresh:disabled { cursor: wait; opacity: 0.72; }
+.is-spinning { animation: duevia-spin 900ms linear infinite; }
+
+@keyframes duevia-spin { to { transform: rotate(360deg); } }
+
 .wallet-control {
   position: relative;
 }

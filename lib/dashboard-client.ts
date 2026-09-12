@@ -169,8 +169,8 @@ async function requestVerifiedDashboard(): Promise<DashboardPayload> {
   };
 }
 
-export function loadVerifiedDashboard(): Promise<DashboardPayload> {
-  if (dashboardCache && dashboardCache.expiresAt > Date.now()) {
+export function loadVerifiedDashboard(force = false): Promise<DashboardPayload> {
+  if (!force && dashboardCache && dashboardCache.expiresAt > Date.now()) {
     return dashboardCache.promise;
   }
 
