@@ -161,6 +161,9 @@ try {
           dueDate: "2099-08-05",
           reviewDays: 3,
           revisionLimit: 1,
+          acceptanceChecklist: [
+            "Scope and delivery roadmap are documented.",
+          ],
         },
         {
           title: "Product build",
@@ -169,6 +172,9 @@ try {
           dueDate: "2099-08-19",
           reviewDays: 3,
           revisionLimit: 1,
+          acceptanceChecklist: [
+            "Responsive implementation is ready for review.",
+          ],
         },
       ],
     }),

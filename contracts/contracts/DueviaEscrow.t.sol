@@ -224,6 +224,29 @@ contract DueviaEscrowTest is Test {
     assertEq(escrow.refundedAmount(), TOTAL_AMOUNT);
   }
 
+  function test_EarlyChangeRequestDoesNotShortenOriginalDeadline() public {
+    _fund();
+    _startAndSubmit(0, "early-submission");
+
+    vm.prank(client);
+    escrow.requestChanges(0);
+
+    // The stored revision period is shorter than the original deadline here,
+    // but the provider keeps the later original delivery window.
+    vm.warp(uint256(escrow.revisionDeadline(0)) + 1);
+    vm.expectRevert(DueviaEscrow.DeadlineNotReached.selector);
+    vm.prank(client);
+    escrow.claimNonDeliveryRefund();
+
+    vm.prank(provider);
+    escrow.submit(0, keccak256("revised-before-original-deadline"));
+    DueviaEscrow.Milestone memory milestone = escrow.getMilestone(0);
+    assertEq(
+      uint256(milestone.state),
+      uint256(DueviaEscrow.MilestoneState.Submitted)
+    );
+  }
+
   function test_SubmissionCannotArriveAfterNonDeliveryDeadline() public {
     _fund();
     vm.prank(provider);

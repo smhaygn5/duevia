@@ -393,13 +393,19 @@ contract DueviaEscrow is ReentrancyGuard {
     uint256 milestoneIndex,
     Milestone storage milestone
   ) private view returns (uint256) {
+    uint256 originalDeadline = milestone.dueDate + nonDeliveryGracePeriod;
     if (
       milestone.state == MilestoneState.ChangesRequested &&
       revisionDeadlines[milestoneIndex] != 0
     ) {
-      return revisionDeadlines[milestoneIndex];
+      uint256 requestedRevisionDeadline = revisionDeadlines[milestoneIndex];
+      // A change request must never shorten the provider's original delivery
+      // window. It can only extend protection after that window has elapsed.
+      return requestedRevisionDeadline > originalDeadline
+        ? requestedRevisionDeadline
+        : originalDeadline;
     }
-    return milestone.dueDate + nonDeliveryGracePeriod;
+    return originalDeadline;
   }
 
   function _refundRemaining(AgreementState finalState) private {
