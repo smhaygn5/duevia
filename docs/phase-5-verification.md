@@ -63,16 +63,16 @@ Verification date: 2026-07-29
 ## Arc Testnet deployment
 
 - Factory:
-  `0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
+  `0x3dD1bD81Fec539Aa3135Ba0E9Aa8c7b75aA0f56a`
 - Deployment transaction:
-  `0x1759dd334012c32d69f852ef56c8424ed8cd16679c72c24db081ccd07e728215`
+  `0xaf2f5e03d20a40c94d64f47bae3b77d126b07750e87851001f569dc976897eba`
 - Block: `53644077`
 - Result: successful
 - Runtime bytecode: confirmed at the factory address
 - Factory USDC:
   `0x3600000000000000000000000000000000000000`
 - Explorer:
-  `https://testnet.arcscan.app/address/0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
+  `https://testnet.arcscan.app/address/0x3dD1bD81Fec539Aa3135Ba0E9Aa8c7b75aA0f56a`
 
 The hosted application now uses this confirmed factory. Contracts remain
 unaudited and are permitted only for Arc Testnet use; no production funds are

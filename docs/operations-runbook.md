@@ -26,7 +26,7 @@ npm run factory:check
 ## Health and monitoring
 
 - Application health: `/api/health/arc`
-- Factory: `0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
+- Factory: `0x3dD1bD81Fec539Aa3135Ba0E9Aa8c7b75aA0f56a`
 - Expected Arc chain ID: `5042002`
 - Primary RPC: `https://rpc.testnet.arc.network`
 - Fallback RPC: `https://arc-testnet.drpc.org`

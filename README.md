@@ -15,7 +15,7 @@ USDC stage by stage.
 - client- or provider-created agreements with private invitation links
 - one ownerless escrow factory and one isolated escrow per accepted agreement
 - a confirmed Arc Testnet factory at
-  `0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad`
+  `0x3dD1bD81Fec539Aa3135Ba0E9Aa8c7b75aA0f56a`
 - exact client-only funding, provider-only delivery, and client-only approval
 - Circle App Kit Bridge execution from supported testnets to Arc
 - Circle Gateway Unified Balance estimation and execution alongside direct Arc
@@ -113,7 +113,7 @@ npm run deploy:arc
 Set a testnet-only `ARC_TESTNET_PRIVATE_KEY` locally before deployment. Never
 commit or paste the key into application code. The confirmed deployment is
 recorded in `contracts/deployments/arc-testnet.json` and can be inspected on
-[Arcscan](https://testnet.arcscan.app/address/0x8097847f00e47Da0Bc6628A3e500215AAeE1fFad).
+[Arcscan](https://testnet.arcscan.app/address/0x3dD1bD81Fec539Aa3135Ba0E9Aa8c7b75aA0f56a).
 
 ## Documentation
 
