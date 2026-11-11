@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getWalletSession } from "@/lib/auth/server";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
+import { publicErrorMessage } from "@/lib/http/public-error";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "counterparties_unavailable",
-        message: error instanceof Error ? error.message : "Unable to load counterparties.",
+        message: publicErrorMessage(error, "Unable to load counterparties."),
       },
       { status: 503 },
     );

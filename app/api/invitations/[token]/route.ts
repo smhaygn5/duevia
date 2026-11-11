@@ -2,6 +2,8 @@ import { formatUnits } from "viem";
 import { NextRequest, NextResponse } from "next/server";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import { getWalletSession, sha256 } from "@/lib/auth/server";
+import { publicErrorMessage } from "@/lib/http/public-error";
+import { consumeRequestLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +82,7 @@ export async function GET(
     return NextResponse.json(
       {
         error: "invitation_unavailable",
-        message: error instanceof Error ? error.message : "Unable to load invitation.",
+        message: publicErrorMessage(error, "Unable to load invitation."),
       },
       { status: 503 },
     );
@@ -92,6 +94,17 @@ export async function POST(
   context: { params: Promise<{ token: string }> },
 ) {
   try {
+    const limit = await consumeRequestLimit(request, {
+      scope: "invitation-accept",
+      limit: 12,
+      windowMs: 60_000,
+    });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "rate_limited", message: "Too many invitation acceptance attempts. Wait a moment and try again." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+      );
+    }
     const session = await getWalletSession(request);
     if (!session) {
       return NextResponse.json(
@@ -155,7 +168,7 @@ export async function POST(
     return NextResponse.json(
       {
         error: "invitation_accept_failed",
-        message: error instanceof Error ? error.message : "Unable to accept invitation.",
+        message: publicErrorMessage(error, "Unable to accept invitation."),
       },
       { status: 400 },
     );

@@ -2,6 +2,7 @@ import { formatUnits } from "viem";
 import { NextRequest, NextResponse } from "next/server";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import { getWalletSession } from "@/lib/auth/server";
+import { publicErrorMessage } from "@/lib/http/public-error";
 
 export const dynamic = "force-dynamic";
 
@@ -129,7 +130,7 @@ export async function GET(
     return NextResponse.json(
       {
         error: "agreement_unavailable",
-        message: error instanceof Error ? error.message : "Unable to load agreement.",
+        message: publicErrorMessage(error, "Unable to load agreement."),
       },
       { status: 503 },
     );

@@ -33,6 +33,7 @@ export const dueviaEscrowAbi = parseAbi([
   "error NotCurrentMilestone()",
   "error ReviewWindowClosed()",
   "error DeadlineNotReached()",
+  "error SubmissionDeadlinePassed()",
   "error RevisionLimitReached()",
   "error WorkAlreadyStarted()",
   "error TokenTransferMismatch()",
@@ -52,6 +53,7 @@ export const dueviaEscrowAbi = parseAbi([
   "function nonDeliveryGracePeriod() view returns (uint64)",
   "function milestoneCount() view returns (uint256)",
   "function getMilestone(uint256 index) view returns (bytes32 milestoneRef, uint256 amount, uint64 dueDate, uint32 reviewWindow, uint8 revisionLimit, uint8 revisionsUsed, uint64 submittedAt, uint8 state)",
+  "function revisionDeadline(uint256 index) view returns (uint64)",
   "function fund()",
   "function startCurrentMilestone()",
   "function submit(uint256 milestoneIndex, bytes32 submissionRef)",
@@ -165,6 +167,9 @@ export function formatContractError(
   }
   if (detail.includes("invalidconfiguration")) {
     return "The escrow terms are no longer valid. Check milestone dates, amounts, and both wallet addresses.";
+  }
+  if (detail.includes("submissiondeadlinepassed")) {
+    return "The delivery deadline has passed. The client can now use the agreement recovery path.";
   }
   if (detail.includes("unauthorized")) {
     return "Only the wallet assigned to this action can complete the transaction.";

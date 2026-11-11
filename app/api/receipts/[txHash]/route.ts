@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import { getWalletSession } from "@/lib/auth/server";
 import { receiptTitle } from "@/lib/agreements/receipt-title";
+import { publicErrorMessage } from "@/lib/http/public-error";
 
 export const dynamic = "force-dynamic";
 
@@ -118,8 +119,7 @@ export async function GET(
     return NextResponse.json(
       {
         error: "receipt_unavailable",
-        message:
-          error instanceof Error ? error.message : "Receipt could not be loaded.",
+        message: publicErrorMessage(error, "Receipt could not be loaded."),
       },
       { status: 503 },
     );

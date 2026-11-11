@@ -8,6 +8,7 @@ import {
   resolveAuthOrigin,
 } from "@/lib/auth/server";
 import { consumeRequestLimit } from "@/lib/security/rate-limit";
+import { publicErrorMessage } from "@/lib/http/public-error";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 
 const requestSchema = z.object({
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
     const address = getAddress(input.address);
     const origin = resolveAuthOrigin({
       requestUrl: request.url,
+      publicOrigin: process.env.DUEVIA_PUBLIC_ORIGIN,
       forwardedHost: request.headers.get("x-forwarded-host"),
       forwardedProto: request.headers.get("x-forwarded-proto"),
     });
@@ -93,12 +95,7 @@ export async function POST(request: NextRequest) {
       expiresAt: expiresAt.toISOString(),
     });
   } catch (error) {
-    const message =
-      error instanceof z.ZodError
-        ? error.issues[0]?.message
-        : error instanceof Error
-          ? error.message
-          : "Unable to create sign-in challenge.";
+    const message = publicErrorMessage(error, "Unable to create sign-in challenge.");
     return NextResponse.json({ error: "challenge_failed", message }, { status: 400 });
   }
 }

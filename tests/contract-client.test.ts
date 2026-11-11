@@ -20,6 +20,12 @@ test("escrow client reads milestones through the deployed contract getter", () =
     ),
     false,
   );
+  assert.equal(
+    dueviaEscrowAbi.some(
+      (item) => item.type === "function" && item.name === "revisionDeadline",
+    ),
+    true,
+  );
 });
 
 test("contract failures are converted to concise user-facing guidance", () => {

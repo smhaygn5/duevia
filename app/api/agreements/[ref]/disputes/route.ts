@@ -308,6 +308,8 @@ function errorMessage(error: unknown, fallback: string) {
   if (/dispute_one_active_per_agreement|unique constraint failed: disputes\.agreement_id/i.test(error.message)) {
     return "Resolve the active dispute before opening another one.";
   }
-  if (/sql|d1_error|constraint|table|column/i.test(error.message)) return fallback;
-  return error.message.slice(0, 240) || fallback;
+  if (/wallet signature could not be verified|signed dispute action expired/i.test(error.message)) {
+    return error.message.slice(0, 240);
+  }
+  return fallback;
 }

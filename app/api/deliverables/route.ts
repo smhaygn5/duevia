@@ -6,6 +6,8 @@ import {
   getRawDb,
 } from "@/db/runtime";
 import { getWalletSession, sha256Bytes } from "@/lib/auth/server";
+import { publicErrorMessage } from "@/lib/http/public-error";
+import { consumeRequestLimit } from "@/lib/security/rate-limit";
 
 const metadataSchema = z.object({
   agreementRef: z.string().regex(/^DV-[A-Z0-9]{4,10}$/i),
@@ -72,6 +74,17 @@ function matchesDeclaredType(bytes: Uint8Array, mediaType: string) {
 export async function POST(request: NextRequest) {
   let uploadedKey: string | null = null;
   try {
+    const limit = await consumeRequestLimit(request, {
+      scope: "deliverable-upload",
+      limit: 12,
+      windowMs: 60_000,
+    });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "rate_limited", message: "Too many upload attempts. Wait a moment and try again." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+      );
+    }
     const session = await getWalletSession(request);
     if (!session) {
       return NextResponse.json(
@@ -215,7 +228,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "upload_failed",
-        message: error instanceof Error ? error.message : "The file could not be uploaded.",
+        message: publicErrorMessage(error, "The file could not be uploaded."),
       },
       { status: 400 },
     );

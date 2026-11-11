@@ -9,6 +9,7 @@ import {
   sha256,
 } from "@/lib/auth/server";
 import { consumeRequestLimit } from "@/lib/security/rate-limit";
+import { publicErrorMessage } from "@/lib/http/public-error";
 import { verifyWalletSignature } from "@/lib/auth/verify-wallet-signature";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 
@@ -159,12 +160,7 @@ export async function POST(request: NextRequest) {
     });
     return response;
   } catch (error) {
-    const message =
-      error instanceof z.ZodError
-        ? error.issues[0]?.message
-        : error instanceof Error
-          ? error.message
-          : "Wallet sign-in failed.";
+    const message = publicErrorMessage(error, "Wallet sign-in failed.");
     return NextResponse.json({ error: "verify_failed", message }, { status: 400 });
   }
 }

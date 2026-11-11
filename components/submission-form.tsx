@@ -234,14 +234,6 @@ export function SubmissionForm({ agreementRef }: { agreementRef: string }) {
     setBusy(true);
     try {
       await wallet.switchToArc();
-      if (currentMilestone.state === "pending") {
-        const startReceipt = await writeEscrowAction(
-          wallet.address,
-          agreementData.agreement.contract_address,
-          { name: "startCurrentMilestone", args: [] },
-        );
-        await syncAgreementTransaction(agreementRef, startReceipt);
-      }
       const submissionHash = keccak256(
         toBytes(
           JSON.stringify({

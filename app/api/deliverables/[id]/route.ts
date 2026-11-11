@@ -5,6 +5,7 @@ import {
   getRawDb,
 } from "@/db/runtime";
 import { getWalletSession } from "@/lib/auth/server";
+import { consumeRequestLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,17 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  const limit = await consumeRequestLimit(request, {
+    scope: "deliverable-delete",
+    limit: 30,
+    windowMs: 60_000,
+  });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "rate_limited", message: "Too many delete attempts. Wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+    );
+  }
   const session = await getWalletSession(request);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 

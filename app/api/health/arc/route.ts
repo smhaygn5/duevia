@@ -11,12 +11,12 @@ export async function GET() {
       network: "Arc Testnet",
       ...status,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         ok: false,
         network: "Arc Testnet",
-        error: error instanceof Error ? error.message : "Unknown RPC error",
+        error: "Arc network status is temporarily unavailable.",
       },
       { status: 503 },
     );

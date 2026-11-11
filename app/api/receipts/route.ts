@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import { getWalletSession } from "@/lib/auth/server";
 import { isSettlementReceipt, receiptTitle } from "@/lib/agreements/receipt-title";
+import { publicErrorMessage } from "@/lib/http/public-error";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,6 @@ export async function GET(request: NextRequest) {
       }),
     });
   } catch (error) {
-    return NextResponse.json({ error: "receipts_unavailable", message: error instanceof Error ? error.message : "Receipts could not be loaded." }, { status: 503 });
+    return NextResponse.json({ error: "receipts_unavailable", message: publicErrorMessage(error, "Receipts could not be loaded.") }, { status: 503 });
   }
 }

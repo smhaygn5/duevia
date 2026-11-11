@@ -45,10 +45,22 @@ Expiration Time: ${params.expirationTime}`;
 
 export function resolveAuthOrigin(params: {
   requestUrl: string;
+  publicOrigin?: string | null;
   forwardedHost?: string | null;
   forwardedProto?: string | null;
 }) {
   const fallbackOrigin = new URL(params.requestUrl).origin;
+  const configuredOrigin = params.publicOrigin?.trim();
+  if (configuredOrigin) {
+    try {
+      const url = new URL(configuredOrigin);
+      if (url.protocol === "https:" && url.pathname === "/" && !url.search && !url.hash) {
+        return url.origin;
+      }
+    } catch {
+      // Fall back safely during local development or an invalid deployment configuration.
+    }
+  }
   const forwardedHost = params.forwardedHost?.split(",")[0]?.trim();
   const forwardedProto = params.forwardedProto
     ?.split(",")[0]

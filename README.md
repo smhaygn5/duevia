@@ -49,6 +49,20 @@ cannot load its real records.
 Duevia contracts are unaudited and intended only for Arc Testnet. Do not use
 this release with production funds.
 
+## Testnet settlement boundaries
+
+- A provider can submit from `Pending` without a separate work-start
+  transaction. Initial submissions must arrive before the milestone due date
+  plus the configured non-delivery grace period.
+- A client request for changes opens a fresh provider revision window. A
+  non-delivery refund cannot be claimed while that window remains open.
+- The signed Dispute Room records evidence and counterparty decisions, but it
+  is not an onchain arbitrator and does not move escrowed USDC automatically.
+- Circle-controlled USDC can restrict transfers involving sanctioned or
+  blacklisted addresses. Duevia does not provide an alternate-recipient path
+  that could bypass those controls; do not use a restricted address in an
+  agreement.
+
 Production deployment:
 `https://duevia.vercel.app`
 

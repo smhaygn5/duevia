@@ -12,9 +12,11 @@ Required production environment variables:
 - `NEXT_PUBLIC_DUEVIA_FACTORY_ADDRESS`
 - `DUEVIA_BACKEND_URL`
 - `DUEVIA_BACKEND_BEARER_TOKEN`
+- `DUEVIA_PUBLIC_ORIGIN` set to `https://duevia.vercel.app`
 
 The backend URL must use HTTPS. Never commit the bearer token or pass it to the
-browser.
+browser. Set `DUEVIA_PUBLIC_ORIGIN` in both the Vercel bridge and the private
+backend environment so wallet signature messages use a fixed public origin.
 
 Vercel Functions accept request and response payloads up to 4.5 MB. Duevia's
 Vercel surface therefore enforces a 4 MB protected-deliverable limit to leave

@@ -36,9 +36,15 @@ Başlıca tehditler:
 - state değişiklikleri token transferinden önce uygulanır;
 - tek seferlik tam fonlama ve transfer sonrası gerçek bakiye kontrolü;
 - yalnız mevcut kilometre taşının işlenmesi;
+- sağlayıcının `Pending` aşamasından doğrudan teslim gönderebilmesi; ayrı bir
+  work-start işlemi fon kilitlemeden önce zorunlu değildir;
 - sınırlı revizyon;
+- değişiklik talebinden sonra sağlayıcı için açık bir revizyon süresi; bu süre
+  bitmeden teslim edilmezlik iadesi alınamaz;
 - inceleme süresi aşımında sağlayıcı release yolu;
 - teslim son tarihi + ek sürede müşteri refund yolu;
+- ilk teslim, `dueDate + nonDeliveryGracePeriod` sonrasında kabul edilmez;
+  revizyon istenmişse yalnız yeni revizyon süresi içinde yeniden gönderilebilir;
 - işe başlamadan iptal ve iki taraflı iptal;
 - zincirde özel içerik yerine `bytes32` referanslar.
 
@@ -58,12 +64,16 @@ Başlıca tehditler:
 
 - Cüzdan oturum nonce’u tek kullanımlık ve kısa ömürlüdür.
 - İmzalanan mesaj domain, URI, chain ID, issued-at ve expiration içerir.
+- Production wallet signature messages use the configured canonical public origin,
+  rather than trusting a user-supplied forwarded host header.
 - Her mutasyonda client/provider rolü sunucuda tekrar doğrulanır.
 - SameSite, HTTP-only oturum çerezi ve tek kullanımlık challenge kullanılır.
 - Cüzdan challenge ve imza doğrulama rotaları D1 tabanlı hız sınırı uygular.
 - API mutasyonları idempotency key kabul eder.
 - D1 kayıtları doğrulanmış Arc receipt’i olmadan final olarak işaretlenmez.
 - R2 bucket public değildir; indirme yetkisi agreement rolüyle doğrulanır.
+- USDC transferinin karşı tarafın Circle uyum kontrolleri nedeniyle reddedilmesi
+  durumunda alternatif alıcı adresiyle kontrolleri aşan bir yol sunulmaz.
 - Dosya tipi uzantı yerine içerik imzasıyla kontrol edilir ve boyut sınırlıdır.
 - Loglarda imza, private key, nonce, dosya URL’si veya özel iş metni tutulmaz.
 - `frame-ancestors`, MIME sniffing, referrer ve tarayıcı izin başlıkları eklenmiştir.
@@ -94,6 +104,7 @@ Başlıca tehditler:
 | --- | --- | --- |
 | Sözleşme denetimsiz | Yüksek | Audit öncesi yalnız testnet |
 | İnsan uyuşmazlığı | Ürün sınırı | MVP’de otomatik hakem yok; açıkça anlat |
+| USDC transfer kısıtları | Ürün sınırı | Kısıtlı/sanctioned alıcı için alternatif payout yolu sunma |
 | Public RPC rate limit | Gözlendi | Retry, yedek ve sağlık izlemesi |
 | Paket açıkları | Upstream uyarılar mevcut | Kilitli sürümleri izlemeye devam et; kırıcı zorlamadan kaçın |
 | Zararlı dosya taraması yok | Testnet boyut/MIME/hash koruması var | Production upload pipeline’ına tarama ekle |

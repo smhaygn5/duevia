@@ -40,6 +40,18 @@ test("wallet sign-in uses the public origin forwarded by the Vercel bridge", () 
   );
 });
 
+test("wallet sign-in prefers the configured public origin over request headers", () => {
+  assert.equal(
+    resolveAuthOrigin({
+      requestUrl: "https://private-backend.example/api/auth/challenge",
+      publicOrigin: "https://duevia.vercel.app",
+      forwardedHost: "attacker.example",
+      forwardedProto: "https",
+    }),
+    "https://duevia.vercel.app",
+  );
+});
+
 test("wallet sign-in ignores unsafe forwarded origins", () => {
   const requestUrl = "https://private-backend.example/api/auth/challenge";
 

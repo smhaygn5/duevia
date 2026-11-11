@@ -49,6 +49,7 @@ contract DueviaEscrow is ReentrancyGuard {
   error NotCurrentMilestone();
   error ReviewWindowClosed();
   error DeadlineNotReached();
+  error SubmissionDeadlinePassed();
   error RevisionLimitReached();
   error WorkAlreadyStarted();
   error TokenTransferMismatch();
@@ -68,6 +69,7 @@ contract DueviaEscrow is ReentrancyGuard {
   bool public providerCancellationApproved;
 
   Milestone[] private milestones;
+  mapping(uint256 milestoneIndex => uint64 deadline) private revisionDeadlines;
 
   event AgreementFunded(bytes32 indexed agreementRef, uint256 amount);
   event MilestoneStarted(
@@ -200,6 +202,10 @@ contract DueviaEscrow is ReentrancyGuard {
     return milestones[index];
   }
 
+  function revisionDeadline(uint256 index) external view returns (uint64) {
+    return revisionDeadlines[index];
+  }
+
   function lockedAmount() external view returns (uint256) {
     return totalAmount - releasedAmount - refundedAmount;
   }
@@ -234,12 +240,17 @@ contract DueviaEscrow is ReentrancyGuard {
 
     Milestone storage milestone = milestones[milestoneIndex];
     if (
+      milestone.state != MilestoneState.Pending &&
       milestone.state != MilestoneState.InProgress &&
       milestone.state != MilestoneState.ChangesRequested
     ) revert InvalidState();
+    if (block.timestamp > _submissionDeadline(milestoneIndex, milestone)) {
+      revert SubmissionDeadlinePassed();
+    }
 
     milestone.state = MilestoneState.Submitted;
     milestone.submittedAt = uint64(block.timestamp);
+    revisionDeadlines[milestoneIndex] = 0;
     emit MilestoneSubmitted(
       agreementRef,
       milestoneIndex,
@@ -263,6 +274,9 @@ contract DueviaEscrow is ReentrancyGuard {
 
     ++milestone.revisionsUsed;
     milestone.state = MilestoneState.ChangesRequested;
+    revisionDeadlines[milestoneIndex] = uint64(
+      block.timestamp + nonDeliveryGracePeriod
+    );
     emit ChangesRequested(
       agreementRef,
       milestoneIndex,
@@ -304,7 +318,7 @@ contract DueviaEscrow is ReentrancyGuard {
       milestone.state != MilestoneState.InProgress &&
       milestone.state != MilestoneState.ChangesRequested
     ) revert InvalidState();
-    if (block.timestamp <= milestone.dueDate + nonDeliveryGracePeriod) {
+    if (block.timestamp <= _submissionDeadline(currentMilestone, milestone)) {
       revert DeadlineNotReached();
     }
 
@@ -373,6 +387,19 @@ contract DueviaEscrow is ReentrancyGuard {
         refundedAmount
       );
     }
+  }
+
+  function _submissionDeadline(
+    uint256 milestoneIndex,
+    Milestone storage milestone
+  ) private view returns (uint256) {
+    if (
+      milestone.state == MilestoneState.ChangesRequested &&
+      revisionDeadlines[milestoneIndex] != 0
+    ) {
+      return revisionDeadlines[milestoneIndex];
+    }
+    return milestone.dueDate + nonDeliveryGracePeriod;
   }
 
   function _refundRemaining(AgreementState finalState) private {

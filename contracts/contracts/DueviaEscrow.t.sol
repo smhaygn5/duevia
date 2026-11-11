@@ -183,6 +183,88 @@ contract DueviaEscrowTest is Test {
     escrow.claimTimeoutRelease(0);
   }
 
+  function test_ChangeRequestStartsARevisionWindowBeforeRefund() public {
+    _fund();
+    vm.warp(uint256(firstDue) + GRACE_PERIOD - 1);
+    _startAndSubmit(0, "late-but-allowed-submission");
+
+    vm.warp(block.timestamp + 2 days);
+    vm.prank(client);
+    escrow.requestChanges(0);
+
+    uint64 revisionDeadline = escrow.revisionDeadline(0);
+    assertEq(revisionDeadline, uint64(block.timestamp + GRACE_PERIOD));
+
+    vm.expectRevert(DueviaEscrow.DeadlineNotReached.selector);
+    vm.prank(client);
+    escrow.claimNonDeliveryRefund();
+
+    vm.prank(provider);
+    escrow.submit(0, keccak256("revised-version"));
+    DueviaEscrow.Milestone memory milestone = escrow.getMilestone(0);
+    assertEq(
+      uint256(milestone.state),
+      uint256(DueviaEscrow.MilestoneState.Submitted)
+    );
+  }
+
+  function test_ClientCanRefundAfterRevisionWindowExpires() public {
+    _fund();
+    vm.warp(uint256(firstDue) + GRACE_PERIOD - 1);
+    _startAndSubmit(0, "needs-revision");
+    vm.warp(block.timestamp + 2 days);
+    vm.prank(client);
+    escrow.requestChanges(0);
+
+    vm.warp(uint256(escrow.revisionDeadline(0)) + 1);
+    vm.prank(client);
+    escrow.claimNonDeliveryRefund();
+
+    assertEq(uint256(escrow.state()), uint256(DueviaEscrow.AgreementState.Refunded));
+    assertEq(escrow.refundedAmount(), TOTAL_AMOUNT);
+  }
+
+  function test_SubmissionCannotArriveAfterNonDeliveryDeadline() public {
+    _fund();
+    vm.prank(provider);
+    escrow.startCurrentMilestone();
+
+    vm.warp(uint256(firstDue) + GRACE_PERIOD + 1);
+    vm.expectRevert(DueviaEscrow.SubmissionDeadlinePassed.selector);
+    vm.prank(provider);
+    escrow.submit(0, keccak256("too-late"));
+  }
+
+  function test_ProviderCanSubmitDirectlyFromPending() public {
+    _fund();
+
+    vm.prank(provider);
+    escrow.submit(0, keccak256("direct-submission"));
+
+    DueviaEscrow.Milestone memory milestone = escrow.getMilestone(0);
+    assertEq(
+      uint256(milestone.state),
+      uint256(DueviaEscrow.MilestoneState.Submitted)
+    );
+  }
+
+  function test_LockedAmountMatchesEscrowBalanceThroughSettlement() public {
+    _fund();
+    assertEq(escrow.lockedAmount(), usdc.balanceOf(address(escrow)));
+
+    _startAndSubmit(0, "first-settlement");
+    vm.prank(client);
+    escrow.approveAndRelease(0);
+    assertEq(escrow.lockedAmount(), usdc.balanceOf(address(escrow)));
+
+    vm.prank(client);
+    escrow.approveMutualCancellation();
+    vm.prank(provider);
+    escrow.approveMutualCancellation();
+    assertEq(escrow.lockedAmount(), usdc.balanceOf(address(escrow)));
+    assertEq(escrow.lockedAmount(), 0);
+  }
+
   function _fund() private {
     vm.prank(client);
     escrow.fund();

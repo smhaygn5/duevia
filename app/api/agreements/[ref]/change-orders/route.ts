@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import { getWalletSession } from "@/lib/auth/server";
+import { consumeRequestLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,13 @@ export async function GET(request: NextRequest, context: { params: Promise<{ ref
 
 export async function POST(request: NextRequest, context: { params: Promise<{ ref: string }> }) {
   try {
+    const limit = await consumeRequestLimit(request, { scope: "change-order", limit: 20, windowMs: 60_000 });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "rate_limited", message: "Too many change order requests. Wait a moment and try again." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+      );
+    }
     const session = await getWalletSession(request);
     if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     await ensureRuntimeSchema();

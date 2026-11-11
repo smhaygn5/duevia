@@ -4,11 +4,24 @@ import { ARC } from "@/lib/arc/config";
 import { getWalletSession, randomToken, sha256 } from "@/lib/auth/server";
 import { agreementInputSchema } from "@/lib/agreements/validation";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
+import { publicErrorMessage } from "@/lib/http/public-error";
+import { consumeRequestLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
+    const limit = await consumeRequestLimit(request, {
+      scope: "agreements-list",
+      limit: 120,
+      windowMs: 60_000,
+    });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "rate_limited", message: "Too many agreement requests. Wait a moment and try again." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+      );
+    }
     const session = await getWalletSession(request);
     if (!session) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -52,7 +65,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "agreements_unavailable",
-        message: error instanceof Error ? error.message : "Unable to load agreements.",
+        message: publicErrorMessage(error, "Unable to load agreements."),
       },
       { status: 503 },
     );
@@ -61,6 +74,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const limit = await consumeRequestLimit(request, {
+      scope: "agreement-create",
+      limit: 12,
+      windowMs: 60_000,
+    });
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "rate_limited", message: "Too many agreement creation requests. Wait a moment and try again." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+      );
+    }
     const session = await getWalletSession(request);
     if (!session) {
       return NextResponse.json(
@@ -215,8 +239,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to create agreement.";
+    const message = publicErrorMessage(error, "Unable to create agreement.");
     return NextResponse.json(
       { error: "agreement_create_failed", message },
       { status: 400 },

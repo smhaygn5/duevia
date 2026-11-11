@@ -22,6 +22,7 @@ import {
   dueviaFactoryAbi,
   getDueviaFactoryAddress,
 } from "@/lib/contracts/duevia";
+import { publicErrorMessage } from "@/lib/http/public-error";
 
 export const dynamic = "force-dynamic";
 
@@ -256,6 +257,34 @@ export async function POST(
           functionName: "nonDeliveryGracePeriod",
         }),
       );
+      const onchainAgreementRef = await withArcRpcRetry(() =>
+        publicClient.readContract({
+          address: args.escrow,
+          abi: dueviaEscrowAbi,
+          functionName: "agreementRef",
+        }),
+      );
+      const onchainClient = await withArcRpcRetry(() =>
+        publicClient.readContract({
+          address: args.escrow,
+          abi: dueviaEscrowAbi,
+          functionName: "client",
+        }),
+      );
+      const onchainProvider = await withArcRpcRetry(() =>
+        publicClient.readContract({
+          address: args.escrow,
+          abi: dueviaEscrowAbi,
+          functionName: "provider",
+        }),
+      );
+      const onchainTotal = await withArcRpcRetry(() =>
+        publicClient.readContract({
+          address: args.escrow,
+          abi: dueviaEscrowAbi,
+          functionName: "totalAmount",
+        }),
+      );
       const onchainMilestones: Array<
         readonly [Hex, bigint, bigint, number, number, number, bigint, number]
       > = [];
@@ -272,6 +301,10 @@ export async function POST(
         );
       }
       const termsMatch =
+        onchainAgreementRef.toLowerCase() === expectedAgreementRef.toLowerCase() &&
+        sameAddress(onchainClient, agreement.client_address) &&
+        sameAddress(onchainProvider, agreement.provider_address) &&
+        onchainTotal === BigInt(agreement.total_amount_minor) &&
         count === BigInt(milestones.results.length) &&
         gracePeriod === 2n * 24n * 60n * 60n &&
         milestones.results.every((milestone, index) => {
@@ -584,12 +617,7 @@ export async function POST(
       detail,
     });
   } catch (error) {
-    const message =
-      error instanceof z.ZodError
-        ? error.issues[0]?.message
-        : error instanceof Error
-          ? error.message
-          : "The Arc transaction could not be synced.";
+    const message = publicErrorMessage(error, "The Arc transaction could not be synced.");
     return NextResponse.json(
       { error: "transaction_sync_failed", message },
       { status: 400 },

@@ -16,6 +16,17 @@ function configurationError(message: string) {
   );
 }
 
+function configuredPublicOrigin() {
+  const value = process.env.DUEVIA_PUBLIC_ORIGIN?.trim();
+  if (!value) return null;
+  try {
+    const origin = new URL(value);
+    return origin.protocol === "https:" && origin.pathname === "/" ? origin : null;
+  } catch {
+    return null;
+  }
+}
+
 async function proxyToDueviaBackend(
   request: NextRequest,
   context: RouteContext,
@@ -42,6 +53,7 @@ async function proxyToDueviaBackend(
   destination.search = request.nextUrl.search;
 
   const headers = new Headers(request.headers);
+  const publicOrigin = configuredPublicOrigin();
   for (const name of [
     "authorization",
     "connection",
@@ -63,7 +75,8 @@ async function proxyToDueviaBackend(
   }
   headers.set(
     "x-forwarded-host",
-    request.headers.get("x-forwarded-host") ??
+    publicOrigin?.host ??
+      request.headers.get("x-forwarded-host") ??
       request.headers.get("host") ??
       request.nextUrl.host,
   );
@@ -91,10 +104,11 @@ async function proxyToDueviaBackend(
   if (contentType.includes("application/json")) {
     const upstreamText = await upstream.text();
     const visibleHost =
+      publicOrigin?.host ??
       request.headers.get("x-forwarded-host") ??
       request.headers.get("host") ??
       request.nextUrl.host;
-    const visibleOrigin = `https://${visibleHost}`;
+    const visibleOrigin = publicOrigin?.origin ?? `https://${visibleHost}`;
     return new Response(
       upstreamText.replaceAll(backendOrigin.origin, visibleOrigin),
       {
