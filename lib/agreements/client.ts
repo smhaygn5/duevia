@@ -37,6 +37,7 @@ export type MilestoneRecord = {
   due_at: number;
   review_window_seconds: number;
   revision_limit: number;
+  acceptance_checklist: string | null;
   revisions_used: number;
   state: string;
   released_tx_hash: Hex | null;

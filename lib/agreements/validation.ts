@@ -7,6 +7,8 @@ export const milestoneInputSchema = z.object({
   dueDate: z.string().date(),
   reviewDays: z.number().int().min(1).max(14),
   revisionLimit: z.number().int().min(0).max(5),
+  dependencyPosition: z.number().int().min(1).optional(),
+  acceptanceChecklist: z.array(z.string().trim().min(3).max(180)).min(1).max(8),
 });
 
 export const agreementInputSchema = z
@@ -39,6 +41,13 @@ export const agreementInputSchema = z
           code: "custom",
           message: "Milestone due dates must be sequential.",
           path: ["milestones", index, "dueDate"],
+        });
+      }
+      if (milestone.dependencyPosition !== undefined && milestone.dependencyPosition >= index + 1) {
+        context.addIssue({
+          code: "custom",
+          message: "A milestone can only depend on an earlier milestone.",
+          path: ["milestones", index, "dependencyPosition"],
         });
       }
       previous = due;

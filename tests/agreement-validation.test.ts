@@ -15,6 +15,7 @@ const validAgreement = {
       dueDate: "2099-08-05",
       reviewDays: 3,
       revisionLimit: 1,
+      acceptanceChecklist: ["The agreed discovery scope is documented."],
     },
     {
       title: "Product build",
@@ -23,6 +24,7 @@ const validAgreement = {
       dueDate: "2099-08-19",
       reviewDays: 3,
       revisionLimit: 1,
+      acceptanceChecklist: ["The agreed product work is ready for review."],
     },
   ],
 };
@@ -50,4 +52,15 @@ test("rejects unordered milestones and over-precise USDC amounts", () => {
       /sequential|valid USDC amount/i,
     );
   }
+});
+
+test("rejects a milestone dependency that points forward", () => {
+  const result = agreementInputSchema.safeParse({
+    ...validAgreement,
+    milestones: validAgreement.milestones.map((milestone, index) => ({
+      ...milestone,
+      dependencyPosition: index === 0 ? 1 : undefined,
+    })),
+  });
+  assert.equal(result.success, false);
 });

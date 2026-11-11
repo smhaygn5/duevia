@@ -29,6 +29,7 @@ export async function GET(
            agreements.client_wallet_id,
            agreements.provider_wallet_id,
            agreements.counterparty_name,
+           agreements.counterparty_email,
            agreements.currency,
            agreements.total_amount_minor,
            agreements.state,

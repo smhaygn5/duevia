@@ -18,6 +18,7 @@ import { AppHeader } from "./app-header";
 import { StatusBadge } from "./status-badge";
 import { useWallet } from "./wallet-provider";
 import { demoAgreement } from "@/lib/demo-data";
+import { agreementActivityDigest } from "@/lib/agreements/activity-digest";
 import { publicProofUrl } from "@/lib/agreements/public-proof";
 import { ChangeOrderPanel } from "./change-order-panel";
 import { DisputeResolutionRoom } from "./dispute-resolution-room";
@@ -41,12 +42,16 @@ type DetailModel = {
     due: string;
     reviewDays: number;
     revisionLimit: number;
+    dependencyPosition: number | null;
+    acceptanceChecklist: string[];
   }>;
   activities: Array<{
+    type: string;
     title: string;
     detail: string;
     time: string;
     tone: string;
+    txHash: string | null;
   }>;
 };
 
@@ -60,8 +65,21 @@ const demoModel: DetailModel = {
   counterparty: demoAgreement.client,
   currentRole: "client",
   contractAddress: demoAgreement.contractAddress,
-  milestones: [...demoAgreement.milestones],
-  activities: [...demoAgreement.activities],
+  milestones: demoAgreement.milestones.map((milestone) => ({
+    ...milestone,
+    dependencyPosition: null,
+    acceptanceChecklist: [milestone.description],
+  })),
+  activities: demoAgreement.activities.map((activity, index) => ({
+    ...activity,
+    type: [
+      "milestone.submitted",
+      "milestone.released",
+      "agreement.funded",
+      "agreement.accepted",
+    ][index] ?? "agreement.recorded",
+    txHash: null,
+  })),
 };
 
 function titleCase(value: string) {
@@ -73,6 +91,17 @@ function titleCase(value: string) {
 
 function activityTitle(type: string) {
   return titleCase(type.replace(".", "_"));
+}
+
+function parseChecklist(value: unknown, fallback: string) {
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return Array.isArray(parsed) && parsed.every((item) => typeof item === "string")
+      ? parsed
+      : [fallback];
+  } catch {
+    return [fallback];
+  }
 }
 
 export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
@@ -143,6 +172,8 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
             }),
             reviewDays: Number(milestone.review_window_seconds) / 86_400,
             revisionLimit: Number(milestone.revision_limit),
+            dependencyPosition: milestone.dependency_position ? Number(milestone.dependency_position) : null,
+            acceptanceChecklist: parseChecklist(milestone.acceptance_checklist, String(milestone.description)),
           })),
           activities: (data.activities ?? []).map((activity) => {
             let parsed: Record<string, unknown> = {};
@@ -157,6 +188,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
               parsed = {};
             }
             return {
+              type: String(activity.type),
               title: activityTitle(String(activity.type)),
               detail:
                 typeof parsed.reviewNote === "string"
@@ -175,6 +207,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
                 : activity.tx_hash
                   ? "accent"
                   : "muted",
+              txHash: activity.tx_hash ? String(activity.tx_hash) : null,
             };
           }),
         });
@@ -247,6 +280,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
       : canSubmit
         ? "Provider delivery"
         : "Counterparty action";
+  const activityDigest = agreementActivityDigest(detail.activities);
 
   return (
     <>
@@ -258,7 +292,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
         eyebrow={isDemo ? `${detail.publicRef} · Demo agreement` : detail.publicRef}
         title={detail.title}
         description={`With ${detail.counterparty} · Arc Testnet`}
-        action={<StatusBadge status={detail.status} />}
+        action={<div className="agreement-header-actions"><StatusBadge status={detail.status} />{!isDemo && <Link className="button button-secondary agreement-clone-link" href={`/app/agreements/new?clone=${encodeURIComponent(detail.publicRef)}`}><Copy size={15} />Clone</Link>}</div>}
       />
 
       {isDemo && (
@@ -330,7 +364,10 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
                       <p>{milestone.description}</p>
                       <small>
                         Due {milestone.due} · {milestone.reviewDays} day review ·{" "}
-                        {milestone.revisionLimit} revision
+                        {milestone.revisionLimit} revision{milestone.revisionLimit === 1 ? "" : "s"}
+                        {milestone.dependencyPosition
+                          ? ` · requires stage ${String(milestone.dependencyPosition).padStart(2, "0")} approval`
+                          : ""}
                       </small>
                     </div>
                     <strong>{milestone.amount} USDC</strong>
@@ -350,6 +387,27 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
                 Full activity
               </Link>
             </header>
+            <div className="agreement-activity-digest" aria-label="Agreement activity digest">
+              <div>
+                <span>Recorded</span>
+                <strong>{activityDigest.recordedEvents}</strong>
+                <small>events</small>
+              </div>
+              <div>
+                <span>Verified</span>
+                <strong>{activityDigest.verifiedEvents}</strong>
+                <small>Arc proofs</small>
+              </div>
+              <div>
+                <span>Settlement</span>
+                <strong>{activityDigest.settlementEvents}</strong>
+                <small>events</small>
+              </div>
+            </div>
+            <div className="agreement-activity-summary">
+              <strong>{activityDigest.latestEvent ? `Latest: ${activityDigest.latestEvent}` : "No recorded activity"}</strong>
+              <p>{activityDigest.summary}</p>
+            </div>
             <div className="activity-list">
               {detail.activities.map((activity) => (
                 <div className="activity-row" key={`${activity.title}-${activity.time}`}>

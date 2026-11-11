@@ -2026,6 +2026,71 @@ button:disabled,
   margin: 0;
 }
 
+.agreement-template-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.agreement-template {
+  align-content: start;
+  background: var(--wash-02);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: var(--foreground);
+  display: grid;
+  gap: 7px;
+  min-height: 154px;
+  padding: 15px;
+  text-align: left;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.agreement-template:hover,
+.agreement-template:focus-visible {
+  background: rgba(124, 140, 255, 0.08);
+  border-color: rgba(135, 149, 255, 0.52);
+  transform: translateY(-1px);
+}
+
+.agreement-template.selected {
+  background: rgba(124, 140, 255, 0.12);
+  border-color: var(--accent-bright);
+}
+
+.agreement-template > svg {
+  color: var(--accent-bright);
+}
+
+.agreement-template strong {
+  font-size: 12px;
+}
+
+.agreement-template > span,
+.agreement-template small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.counterparty-directory { border-top: 1px solid var(--line); display: grid; gap: 13px; margin-top: 22px; padding-top: 20px; }
+.counterparty-directory > div:first-child { display: grid; gap: 4px; }
+.counterparty-directory strong { font-size: 11px; }
+.counterparty-directory p { color: var(--muted); font-size: 10px; line-height: 1.45; margin: 0; }
+.counterparty-directory-list { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.counterparty-directory-card { align-content: start; background: var(--wash-02); border: 1px solid var(--line); border-radius: 10px; color: var(--foreground); display: grid; gap: 4px; min-height: 82px; padding: 12px; text-align: left; transition: background 160ms ease, border-color 160ms ease; }
+.counterparty-directory-card:hover, .counterparty-directory-card:focus-visible, .counterparty-directory-card.selected { background: color-mix(in srgb, var(--accent) 9%, var(--surface)); border-color: color-mix(in srgb, var(--accent-bright) 60%, var(--line)); }
+.counterparty-directory-card > span { font-size: 11px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.counterparty-directory-card small, .counterparty-directory-card em { color: var(--muted); font-size: 9px; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.counterparty-directory-card em { color: var(--accent-bright); margin-top: 2px; }
+.milestone-dependency-field { background: color-mix(in srgb, var(--accent) 5%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line)); border-radius: 10px; padding: 12px; }
+.milestone-dependency-field small { color: var(--muted); font-size: 9px; line-height: 1.45; }
+
+.agreement-template small {
+  align-self: end;
+  color: var(--accent-bright);
+}
+
 .form-fields {
   display: grid;
   gap: 18px 14px;
@@ -2415,6 +2480,9 @@ button:disabled,
   grid-template-columns: minmax(0, 1fr) 320px;
 }
 
+.agreement-header-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end; }
+.agreement-clone-link { min-height: 34px; padding: 0 11px; }
+
 .agreement-detail-main {
   display: grid;
   gap: 16px;
@@ -2553,6 +2621,44 @@ button:disabled,
   display: grid;
   margin-top: 18px;
 }
+
+.agreement-activity-digest {
+  display: grid;
+  gap: 9px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.agreement-activity-digest > div {
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel-glass));
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+  border-radius: 10px;
+  display: grid;
+  gap: 3px;
+  padding: 11px;
+}
+
+.agreement-activity-digest span,
+.agreement-activity-digest small {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.agreement-activity-digest strong {
+  font-size: 18px;
+  letter-spacing: -0.04em;
+}
+
+.agreement-activity-summary {
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding-bottom: 13px;
+}
+
+.agreement-activity-summary strong { font-size: 10px; }
+.agreement-activity-summary p { color: var(--muted); font-size: 9px; margin: 0; }
 
 .activity-row {
   align-items: start;
@@ -4789,6 +4895,10 @@ button:disabled,
     grid-template-columns: 1fr;
   }
 
+  .agreement-template-grid {
+    grid-template-columns: 1fr;
+  }
+
   .funding-context {
     padding-top: 0;
   }
@@ -4927,6 +5037,7 @@ button:disabled,
   }
 
   .agreement-financials,
+  .agreement-activity-digest,
   .form-fields,
   .funding-agreement-card,
   .submission-result,

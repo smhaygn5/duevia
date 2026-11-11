@@ -6,10 +6,16 @@ import {
   Check,
   Copy,
   Plus,
+  ListChecks,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { cloneMilestoneSchedule } from "@/lib/agreements/clone";
+import { agreementTemplates } from "@/lib/agreements/templates";
+import { acceptanceChecklistPresets, checklistForPreset } from "@/lib/agreements/acceptance-checklists";
 import { useWallet } from "./wallet-provider";
 
 type MilestoneDraft = {
@@ -19,36 +25,46 @@ type MilestoneDraft = {
   dueDate: string;
   reviewDays: number;
   revisionLimit: number;
+  dependencyPosition?: number;
+  acceptanceChecklist: string[];
 };
 
-const defaults: MilestoneDraft[] = [
-  {
-    title: "Discovery & scope",
-    description:
-      "Research, requirements, and an agreed delivery roadmap for the engagement.",
-    amount: "1000",
-    dueDate: "2026-08-05",
-    reviewDays: 3,
-    revisionLimit: 1,
-  },
-  {
-    title: "Primary delivery",
-    description:
-      "The main project output, delivered against the agreed acceptance criteria.",
-    amount: "2500",
-    dueDate: "2026-08-19",
-    reviewDays: 3,
-    revisionLimit: 1,
-  },
-];
+type Counterparty = {
+  name: string;
+  email: string | null;
+  agreement_count: number;
+  last_used_at: number;
+};
+
+function checklistFromStoredValue(value: unknown, fallback: string) {
+  if (Array.isArray(value) && value.every((item) => typeof item === "string")) return value as string[];
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) return parsed;
+    } catch {
+      // Legacy milestones have no stored checklist.
+    }
+  }
+  return [fallback];
+}
 
 export function AgreementForm() {
   const wallet = useWallet();
-  const [title, setTitle] = useState("Global Product Launch");
+  const searchParams = useSearchParams();
+  const templates = useMemo(() => agreementTemplates().map((template) => ({
+    ...template,
+    milestones: template.milestones.map((milestone) => ({
+      ...milestone,
+      acceptanceChecklist: milestone.acceptanceChecklist ?? [milestone.description],
+    })),
+  })), []);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(templates[0].id);
+  const [title, setTitle] = useState(templates[0].agreementTitle);
   const [creatorRole, setCreatorRole] = useState<"client" | "provider">("provider");
   const [counterpartyName, setCounterpartyName] = useState("Northstar Labs");
   const [counterpartyEmail, setCounterpartyEmail] = useState("");
-  const [milestones, setMilestones] = useState<MilestoneDraft[]>(defaults);
+  const [milestones, setMilestones] = useState<MilestoneDraft[]>(templates[0].milestones);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{
@@ -56,6 +72,100 @@ export function AgreementForm() {
     inviteUrl: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [cloneNotice, setCloneNotice] = useState<string | null>(null);
+  const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
+  const [counterpartyError, setCounterpartyError] = useState<string | null>(null);
+  const cloneRef = searchParams.get("clone")?.toUpperCase();
+  const cloneLoading = Boolean(cloneRef && wallet.authenticated && !cloneNotice && !error);
+
+  useEffect(() => {
+    if (!cloneRef || !wallet.authenticated) return;
+    let active = true;
+
+    void fetch(`/api/agreements/${encodeURIComponent(cloneRef)}`, { cache: "no-store" })
+      .then(async (response) => {
+        const payload = (await response.json()) as {
+          agreement?: {
+            title: string;
+            creator_role: "client" | "provider";
+            counterparty_name: string;
+            counterparty_email: string | null;
+          };
+          milestones?: Array<{
+            title: string;
+            description: string;
+            amount: string;
+            due_at: number;
+            review_window_seconds: number;
+            revision_limit: number;
+            dependency_position: number | null;
+            acceptance_checklist: string | null;
+          }>;
+          message?: string;
+        };
+        if (!response.ok || !payload.agreement || !payload.milestones) {
+          throw new Error(payload.message ?? "The agreement could not be copied.");
+        }
+        if (!active) return;
+        setSelectedTemplate("");
+        setTitle(`Copy of ${payload.agreement.title}`.slice(0, 100));
+        setCreatorRole(payload.agreement.creator_role);
+        setCounterpartyName(payload.agreement.counterparty_name);
+        setCounterpartyEmail(payload.agreement.counterparty_email ?? "");
+        setMilestones(
+          cloneMilestoneSchedule(
+            payload.milestones.map((milestone) => ({
+              title: milestone.title,
+              description: milestone.description,
+              amount: milestone.amount,
+              dueAt: Number(milestone.due_at),
+              reviewDays: Math.max(1, Math.round(Number(milestone.review_window_seconds) / 86_400)),
+              revisionLimit: Number(milestone.revision_limit),
+              dependencyPosition: milestone.dependency_position ? Number(milestone.dependency_position) : undefined,
+              acceptanceChecklist: checklistFromStoredValue(milestone.acceptance_checklist, milestone.description),
+            })),
+          ),
+        );
+        setCloneNotice(`Copied the terms from ${cloneRef}. Review them before creating a new invitation.`);
+      })
+      .catch((cloneError: unknown) => {
+        if (active) {
+          setError(cloneError instanceof Error ? cloneError.message : "The agreement could not be copied.");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [cloneRef, wallet.authenticated]);
+
+  useEffect(() => {
+    if (!wallet.authenticated) return;
+    let active = true;
+    void fetch("/api/counterparties", { cache: "no-store" })
+      .then(async (response) => {
+        const payload = (await response.json()) as {
+          counterparties?: Counterparty[];
+          message?: string;
+        };
+        if (!response.ok || !payload.counterparties) {
+          throw new Error(payload.message ?? "Saved counterparties could not be loaded.");
+        }
+        if (active) setCounterparties(payload.counterparties);
+      })
+      .catch((directoryError: unknown) => {
+        if (active) {
+          setCounterpartyError(
+            directoryError instanceof Error
+              ? directoryError.message
+              : "Saved counterparties could not be loaded.",
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [wallet.authenticated]);
 
   const total = useMemo(
     () =>
@@ -69,7 +179,7 @@ export function AgreementForm() {
   function updateMilestone(
     index: number,
     field: keyof MilestoneDraft,
-    value: string | number,
+    value: string | number | string[] | undefined,
   ) {
     setMilestones((current) =>
       current.map((milestone, itemIndex) =>
@@ -92,8 +202,25 @@ export function AgreementForm() {
         dueDate: nextDate.toISOString().slice(0, 10),
         reviewDays: 3,
         revisionLimit: 1,
+        dependencyPosition: milestones.length || undefined,
+        acceptanceChecklist: ["The agreed outcome is delivered and ready for review."],
       },
     ]);
+  }
+
+  function applyTemplate(templateId: (typeof templates)[number]["id"]) {
+    const template = templates.find((item) => item.id === templateId);
+    if (!template) return;
+    setSelectedTemplate(template.id);
+    setTitle(template.agreementTitle);
+    setMilestones(template.milestones.map((milestone) => ({ ...milestone })));
+    setError(null);
+  }
+
+  function applyChecklistPreset(index: number, presetId: string) {
+    const items = checklistForPreset(presetId);
+    if (!items.length) return;
+    updateMilestone(index, "acceptanceChecklist", items);
   }
 
   async function submit(event: FormEvent) {
@@ -190,6 +317,33 @@ export function AgreementForm() {
   return (
     <form className="agreement-form-layout" onSubmit={submit}>
       <div className="agreement-form-main">
+        {cloneLoading && <div className="workspace-disclosure workspace-disclosure-verified"><strong>Loading agreement terms</strong><span>Preparing an editable copy with a new future schedule.</span></div>}
+        {cloneNotice && <div className="workspace-disclosure workspace-disclosure-verified"><strong>Editable agreement copy</strong><span>{cloneNotice} Payment, acceptance, activity, and delivery history are not copied.</span></div>}
+        <section className="form-section">
+          <div className="form-section-intro">
+            <span>00</span>
+            <div>
+              <h2>Start with a template</h2>
+              <p>Choose a structure, then edit every title, amount, date, and review rule.</p>
+            </div>
+          </div>
+          <div className="agreement-template-grid" aria-label="Agreement templates">
+            {templates.map((template) => (
+              <button
+                className={`agreement-template${selectedTemplate === template.id ? " selected" : ""}`}
+                key={template.id}
+                type="button"
+                aria-pressed={selectedTemplate === template.id}
+                onClick={() => applyTemplate(template.id)}
+              >
+                <Sparkles size={16} />
+                <strong>{template.label}</strong>
+                <span>{template.description}</span>
+                <small>{template.milestones.length} milestones · amounts remain editable</small>
+              </button>
+            ))}
+          </div>
+        </section>
         <section className="form-section">
           <div className="form-section-intro">
             <span>01</span>
@@ -240,6 +394,35 @@ export function AgreementForm() {
               <small>Duevia creates a private link; email sending is not automatic yet.</small>
             </label>
           </div>
+          {wallet.authenticated && (counterparties.length > 0 || counterpartyError) && (
+            <section className="counterparty-directory" aria-label="Saved counterparties">
+              <div>
+                <strong>Saved counterparties</strong>
+                <p>Reuse a name and optional email from an agreement visible to this wallet.</p>
+              </div>
+              {counterpartyError ? (
+                <small className="form-error">{counterpartyError}</small>
+              ) : (
+                <div className="counterparty-directory-list">
+                  {counterparties.map((counterparty) => (
+                    <button
+                      key={`${counterparty.name}-${counterparty.email ?? "no-email"}`}
+                      className={`counterparty-directory-card${counterpartyName === counterparty.name && counterpartyEmail === (counterparty.email ?? "") ? " selected" : ""}`}
+                      type="button"
+                      onClick={() => {
+                        setCounterpartyName(counterparty.name);
+                        setCounterpartyEmail(counterparty.email ?? "");
+                      }}
+                    >
+                      <span>{counterparty.name}</span>
+                      <small>{counterparty.email ?? "No email saved"}</small>
+                      <em>{counterparty.agreement_count} agreement{counterparty.agreement_count === 1 ? "" : "s"}</em>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </section>
 
         <section className="form-section">
@@ -354,6 +537,50 @@ export function AgreementForm() {
                       ))}
                     </select>
                   </label>
+                  <label className="field full milestone-dependency-field">
+                    <span>Required prior milestone</span>
+                    <select
+                      value={milestone.dependencyPosition ?? ""}
+                      onChange={(event) =>
+                        updateMilestone(
+                          index,
+                          "dependencyPosition",
+                          event.target.value ? Number(event.target.value) : undefined,
+                        )
+                      }
+                    >
+                      <option value="">No additional prerequisite</option>
+                      {milestones.slice(0, index).map((prior, priorIndex) => (
+                        <option value={priorIndex + 1} key={priorIndex}>
+                          {String(priorIndex + 1).padStart(2, "0")} · {prior.title || "Untitled milestone"}
+                        </option>
+                      ))}
+                    </select>
+                    <small>
+                      {index === 0
+                        ? "The first milestone begins after agreement funding."
+                        : "Duevia still settles every stage in sequence; this records the key approval that unlocks this work."}
+                    </small>
+                  </label>
+                  <section className="acceptance-checklist-editor field full" aria-label={`Acceptance checklist for milestone ${index + 1}`}>
+                    <div>
+                      <span><ListChecks size={14} /> Acceptance checklist</span>
+                      <small>These checks must be confirmed before this milestone can release.</small>
+                    </div>
+                    <select aria-label="Apply reusable acceptance checklist" defaultValue="" onChange={(event) => applyChecklistPreset(index, event.target.value)}>
+                      <option value="" disabled>Apply a reusable checklist</option>
+                      {acceptanceChecklistPresets.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
+                    </select>
+                    <div className="acceptance-checklist-items">
+                      {milestone.acceptanceChecklist.map((item, itemIndex) => (
+                        <label key={`${itemIndex}-${item}`}>
+                          <input value={item} onChange={(event) => updateMilestone(index, "acceptanceChecklist", milestone.acceptanceChecklist.map((current, currentIndex) => currentIndex === itemIndex ? event.target.value : current))} />
+                          <button type="button" aria-label={`Remove checklist item ${itemIndex + 1}`} onClick={() => updateMilestone(index, "acceptanceChecklist", milestone.acceptanceChecklist.filter((_, currentIndex) => currentIndex !== itemIndex))} disabled={milestone.acceptanceChecklist.length === 1}><Trash2 size={14} /></button>
+                        </label>
+                      ))}
+                    </div>
+                    <button className="add-checklist-item" type="button" onClick={() => updateMilestone(index, "acceptanceChecklist", [...milestone.acceptanceChecklist, ""])}><Plus size={14} /> Add check</button>
+                  </section>
                 </div>
               </article>
             ))}
@@ -396,7 +623,7 @@ export function AgreementForm() {
           <span>Settle</span>
         </div>
         {error && <div className="form-error" role="alert">{error}</div>}
-        <button className="button button-primary summary-submit" disabled={submitting}>
+        <button className="button button-primary summary-submit" disabled={submitting || cloneLoading}>
           {submitting ? "Creating…" : "Create & generate invite"}
           <ArrowRight size={16} />
         </button>

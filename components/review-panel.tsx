@@ -33,6 +33,18 @@ import { useWallet } from "./wallet-provider";
 
 type ReviewState = "review" | "changes" | "approve";
 
+function checklistFromMilestone(value: unknown, fallback = "Delivery matches the agreed milestone scope.") {
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
+      return parsed.map((label) => ({ label, complete: true }));
+    }
+  } catch {
+    // Agreements created before checklists retain their scope review.
+  }
+  return [{ label: fallback, complete: true }];
+}
+
 export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
   const router = useRouter();
   const wallet = useWallet();
@@ -236,14 +248,10 @@ export function ReviewPanel({ agreementRef }: { agreementRef: string }) {
       }));
   const criteria = isDemo
     ? demoDelivery.criteria
-    : [
-        {
-          label:
-            currentMilestone?.description ??
-            "Delivery matches the agreed milestone scope.",
-          complete: true,
-        },
-      ];
+    : checklistFromMilestone(
+        currentMilestone?.acceptance_checklist,
+        currentMilestone?.description,
+      );
   const submissionVersions = isDemo
     ? [
         {

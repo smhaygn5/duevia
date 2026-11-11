@@ -112,6 +112,8 @@ export async function POST(request: NextRequest) {
           dueAt: milestone.dueAt,
           reviewWindowSeconds: milestone.reviewWindowSeconds,
           revisionLimit: milestone.revisionLimit,
+          dependencyPosition: milestone.dependencyPosition ?? null,
+          acceptanceChecklist: milestone.acceptanceChecklist,
         })),
       }),
     );
@@ -165,8 +167,8 @@ export async function POST(request: NextRequest) {
             `INSERT INTO milestones (
               id, agreement_id, position, milestone_hash, title, description,
               amount_minor, due_at, review_window_seconds, revision_limit,
-              revisions_used, state, released_tx_hash, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'pending', NULL, ?, ?)`,
+              dependency_position, acceptance_checklist, revisions_used, state, released_tx_hash, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'pending', NULL, ?, ?)`,
           )
           .bind(
             milestone.id,
@@ -179,6 +181,8 @@ export async function POST(request: NextRequest) {
             milestone.dueAt,
             milestone.reviewWindowSeconds,
             milestone.revisionLimit,
+            milestone.dependencyPosition ?? null,
+            JSON.stringify(milestone.acceptanceChecklist),
             now,
             now,
           ),

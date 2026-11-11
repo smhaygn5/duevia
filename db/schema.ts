@@ -144,6 +144,8 @@ export const milestones = sqliteTable(
     dueAt: integer("due_at", { mode: "timestamp_ms" }).notNull(),
     reviewWindowSeconds: integer("review_window_seconds").notNull(),
     revisionLimit: integer("revision_limit").notNull(),
+    dependencyPosition: integer("dependency_position"),
+    acceptanceChecklist: text("acceptance_checklist", { mode: "json" }).$type<string[]>().notNull().default([]),
     revisionsUsed: integer("revisions_used").notNull().default(0),
     state: text("state")
       .$type<MilestoneState>()

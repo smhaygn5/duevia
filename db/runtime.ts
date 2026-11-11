@@ -57,6 +57,7 @@ export function ensureRuntimeSchema() {
       )
       .first<{ table_count: number }>();
     if (Number(existing?.table_count ?? 0) === 9) {
+      await ensureMilestoneColumns(db);
       return;
     }
 
@@ -139,6 +140,8 @@ export function ensureRuntimeSchema() {
         due_at INTEGER NOT NULL,
         review_window_seconds INTEGER NOT NULL,
         revision_limit INTEGER NOT NULL,
+        dependency_position INTEGER,
+        acceptance_checklist TEXT NOT NULL DEFAULT '[]',
         revisions_used INTEGER DEFAULT 0 NOT NULL,
         state TEXT DEFAULT 'pending' NOT NULL,
         released_tx_hash TEXT,
@@ -221,10 +224,30 @@ export function ensureRuntimeSchema() {
     ];
 
     await db.batch(statements.map((statement) => db.prepare(statement)));
+    await ensureMilestoneColumns(db);
   })().catch((error) => {
     schemaReady = undefined;
     throw error;
   });
 
   return schemaReady;
+}
+
+async function ensureMilestoneColumns(db: D1Database) {
+  await ensureMilestoneColumn(db, "dependency_position", "INTEGER");
+  await ensureMilestoneColumn(db, "acceptance_checklist", "TEXT NOT NULL DEFAULT '[]'");
+}
+
+async function ensureMilestoneColumn(db: D1Database, name: string, definition: string) {
+  const column = await db
+    .prepare(
+      `SELECT COUNT(*) AS column_count
+       FROM pragma_table_info('milestones')
+       WHERE name = ?`,
+    )
+    .bind(name)
+    .first<{ column_count: number }>();
+  if (Number(column?.column_count ?? 0) === 0) {
+    await db.prepare(`ALTER TABLE milestones ADD COLUMN ${name} ${definition}`).run();
+  }
 }
