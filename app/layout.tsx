@@ -12,6 +12,7 @@ const sans = Manrope({
 const editorial = Instrument_Serif({
   subsets: ["latin"],
   weight: "400",
+  style: ["normal", "italic"],
   variable: "--font-editorial",
 });
 
