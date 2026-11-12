@@ -2,26 +2,26 @@
 
 :root {
   color-scheme: dark;
-  --background: #020618;
-  --surface: #080d21;
-  --surface-raised: #0d132b;
-  --line: rgba(181, 192, 255, 0.14);
-  --line-strong: rgba(181, 192, 255, 0.24);
-  --foreground: #f7f8ff;
-  --muted: #9ca5bf;
-  --accent: #7c8cff;
-  --accent-bright: #a8b2ff;
-  --success: #62e3ad;
+  --background: #071110;
+  --surface: #0c1918;
+  --surface-raised: #122120;
+  --line: rgba(191, 222, 213, 0.14);
+  --line-strong: rgba(191, 222, 213, 0.26);
+  --foreground: #f3f5ed;
+  --muted: #a4b1ab;
+  --accent: #2f9e7b;
+  --accent-bright: #94e0be;
+  --success: #72d7aa;
   --danger: #ff8e9b;
   --danger-background: #26101c;
   --danger-strong: #ffc2c9;
   --muted-soft: #6f7893;
-  --on-foreground: #050817;
-  --panel-glass: rgba(8, 13, 33, 0.72);
-  --panel-strong: rgba(8, 13, 33, 0.9);
-  --popover-background: #0a0f22;
-  --sidebar-background: rgba(4, 8, 25, 0.82);
-  --warning: #ffd594;
+  --on-foreground: #071110;
+  --panel-glass: rgba(12, 25, 24, 0.72);
+  --panel-strong: rgba(12, 25, 24, 0.94);
+  --popover-background: #0c1918;
+  --sidebar-background: rgba(7, 17, 16, 0.88);
+  --warning: #e7bd72;
   --settlement-surface: #f4f6fb;
   --settlement-foreground: #11172a;
   --settlement-muted: #697188;
@@ -39,33 +39,33 @@
   --wash-075: rgba(255, 255, 255, 0.075);
   --wash-08: rgba(255, 255, 255, 0.08);
   --page-background:
-    radial-gradient(circle at 78% 8%, rgba(92, 111, 255, 0.13), transparent 30rem),
-    radial-gradient(circle at 15% 30%, rgba(47, 207, 180, 0.05), transparent 24rem),
+    radial-gradient(circle at 80% 4%, rgba(86, 169, 135, 0.12), transparent 30rem),
+    radial-gradient(circle at 9% 34%, rgba(226, 184, 103, 0.05), transparent 24rem),
     var(--background);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --background: #f4f6fb;
-  --surface: #ffffff;
-  --surface-raised: #edf1f8;
-  --line: rgba(30, 39, 75, 0.13);
-  --line-strong: rgba(30, 39, 75, 0.22);
-  --foreground: #101528;
-  --muted: #667089;
-  --accent: #5265e8;
-  --accent-bright: #4052bf;
-  --success: #13795b;
+  --background: #f4f3ed;
+  --surface: #fbfaf5;
+  --surface-raised: #ecebe3;
+  --line: rgba(31, 58, 50, 0.14);
+  --line-strong: rgba(31, 58, 50, 0.25);
+  --foreground: #132522;
+  --muted: #65736d;
+  --accent: #167458;
+  --accent-bright: #0e6049;
+  --success: #147452;
   --danger: #bd3e55;
   --danger-background: #fff0f2;
   --danger-strong: #a52b43;
   --muted-soft: #7b849b;
-  --on-foreground: #ffffff;
-  --panel-glass: rgba(255, 255, 255, 0.82);
-  --panel-strong: rgba(255, 255, 255, 0.94);
-  --popover-background: #ffffff;
-  --sidebar-background: rgba(255, 255, 255, 0.86);
-  --warning: #906018;
+  --on-foreground: #fbfaf5;
+  --panel-glass: rgba(251, 250, 245, 0.84);
+  --panel-strong: rgba(251, 250, 245, 0.96);
+  --popover-background: #fbfaf5;
+  --sidebar-background: rgba(251, 250, 245, 0.9);
+  --warning: #966b26;
   --settlement-surface: #ffffff;
   --settlement-foreground: #17203a;
   --settlement-muted: #68718a;
@@ -83,8 +83,8 @@
   --wash-075: rgba(17, 25, 53, 0.075);
   --wash-08: rgba(17, 25, 53, 0.08);
   --page-background:
-    radial-gradient(circle at 78% 8%, rgba(82, 101, 232, 0.1), transparent 30rem),
-    radial-gradient(circle at 15% 30%, rgba(19, 121, 91, 0.06), transparent 24rem),
+    radial-gradient(circle at 80% 4%, rgba(35, 126, 94, 0.08), transparent 30rem),
+    radial-gradient(circle at 9% 34%, rgba(197, 153, 68, 0.06), transparent 24rem),
     var(--background);
 }
 
@@ -100,9 +100,7 @@ body {
   margin: 0;
   background: var(--page-background);
   color: var(--foreground);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   min-height: 100vh;
   cursor: default;
   transition: background 220ms ease, color 180ms ease;
@@ -304,15 +302,18 @@ a {
 }
 
 .hero h1 {
-  font-size: clamp(52px, 6vw, 82px);
-  letter-spacing: -0.065em;
-  line-height: 0.98;
+  font-family: var(--font-editorial), Georgia, serif;
+  font-size: clamp(62px, 7.1vw, 96px);
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  line-height: 0.86;
   margin: 0;
   max-width: 720px;
 }
 
 .hero h1 span {
   color: var(--accent-bright);
+  font-style: italic;
 }
 
 .hero-copy > p {
@@ -358,6 +359,152 @@ a {
   border-radius: 24px;
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.3);
   padding: 25px;
+}
+
+.hero-dossier {
+  position: relative;
+}
+
+.hero-dossier::before {
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 42px 42px;
+  content: "";
+  height: min(70%, 500px);
+  mask-image: linear-gradient(90deg, transparent, black 18%, black 80%, transparent);
+  opacity: 0.23;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 92px;
+  width: 53%;
+  z-index: -1;
+}
+
+.agreement-dossier {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.04), transparent 42%),
+    var(--panel-strong);
+  border-radius: 4px 22px 22px 22px;
+  box-shadow:
+    -10px 10px 0 color-mix(in srgb, var(--accent) 16%, transparent),
+    24px 32px 80px rgba(0, 0, 0, 0.22);
+  padding: 27px;
+  position: relative;
+}
+
+.agreement-dossier .preview-topline {
+  color: var(--accent-bright);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.dossier-reference,
+.dossier-section-label,
+.dossier-proof {
+  align-items: center;
+  display: flex;
+}
+
+.dossier-reference {
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-bottom: 15px;
+}
+
+.dossier-reference code,
+.dossier-proof code {
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.agreement-dossier .preview-heading {
+  margin-top: 20px;
+}
+
+.agreement-dossier .preview-heading p {
+  font-family: var(--font-editorial), Georgia, serif;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+.agreement-dossier .preview-heading strong {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.agreement-dossier .preview-heading strong small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.dossier-divider {
+  border-top: 1px solid var(--line);
+  margin: 24px 0 13px;
+}
+
+.dossier-section-label {
+  color: var(--muted);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  justify-content: space-between;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.agreement-dossier .progress-track {
+  border-radius: 0;
+  margin: 15px 0 21px;
+}
+
+.agreement-dossier .progress-track span {
+  background: var(--accent);
+}
+
+.agreement-dossier .milestone-row {
+  border-radius: 4px;
+}
+
+.agreement-dossier .milestone-row.active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 31%, transparent);
+}
+
+.agreement-dossier .milestone-row b {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dossier-proof {
+  color: var(--muted);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: 17px;
+}
+
+.dossier-proof .status-dot {
+  box-shadow: none;
+  flex: 0 0 auto;
+  height: 5px;
+  width: 5px;
+}
+
+.dossier-proof span:nth-child(2) {
+  margin-right: auto;
 }
 
 .preview-topline,

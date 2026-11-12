@@ -54,20 +54,20 @@ export default function Home() {
         </div>
       </nav>
 
-      <section className="hero">
+      <section className="hero hero-dossier">
         <div className="hero-copy">
           <div className="eyebrow">
             <span className="status-dot" />
-            Milestone agreements, settled globally
+            The agreement desk for global work
           </div>
           <h1>
-            Work in stages.
+            Make the work
             <br />
-            <span>Settle globally.</span>
+            <span>worth settling.</span>
           </h1>
           <p>
-            Duevia gives clients and independent teams one place to agree,
-            fund, deliver, and settle milestone-based work in USDC.
+            A clear operating record for scoped work, protected milestones, and
+            USDC settlement on Arc Testnet.
           </p>
           <div className="hero-actions">
             <Link className="button button-primary" href="/app">
@@ -80,28 +80,37 @@ export default function Home() {
           </div>
           <div className="trust-row" aria-label="Product principles">
             <span>
-              <Check size={15} /> Clear terms
+              <Check size={15} /> Terms, dates, and revisions
             </span>
             <span>
-              <Check size={15} /> Onchain settlement
+              <Check size={15} /> Evidence before release
             </span>
             <span>
-              <Check size={15} /> Global by default
+              <Check size={15} /> Settlement recorded on Arc
             </span>
           </div>
         </div>
 
-        <div className="agreement-preview" aria-label="Agreement preview">
+        <div className="agreement-preview agreement-dossier" aria-label="Agreement preview">
           <div className="preview-topline">
-            <span>Agreement DV-2048</span>
-            <span className="pill pill-live">Active</span>
+            <span>Duevia / agreement file</span>
+            <span className="pill pill-live">Escrow funded</span>
+          </div>
+          <div className="dossier-reference">
+            <span>Reference</span>
+            <code>DV-2048 / ARC TESTNET</code>
           </div>
           <div className="preview-heading">
             <div>
               <p>Brand system delivery</p>
-              <span>3 milestones · funded in USDC</span>
+              <span>Northstar Labs ↔ Studio Onda</span>
             </div>
-            <strong>$12,800</strong>
+            <strong>12,800 <small>USDC</small></strong>
+          </div>
+          <div className="dossier-divider" />
+          <div className="dossier-section-label">
+            <span>Settlement plan</span>
+            <span>02 of 03 in review</span>
           </div>
           <div className="progress-track" aria-label="66 percent complete">
             <span />
@@ -136,7 +145,12 @@ export default function Home() {
           </div>
           <div className="preview-footer">
             <LockKeyhole size={15} aria-hidden="true" />
-            Remaining funds are locked on Arc
+            Funds remain locked until the review is complete
+          </div>
+          <div className="dossier-proof">
+            <span className="status-dot" />
+            <span>Proof trail ready for review</span>
+            <code>SHA256</code>
           </div>
         </div>
       </section>

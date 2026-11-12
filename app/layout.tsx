@@ -1,7 +1,24 @@
 import type { Metadata, Viewport } from "next";
+import { Instrument_Serif, Manrope, Roboto_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { WalletProvider } from "@/components/wallet-provider";
 import "./globals.css";
+
+const sans = Manrope({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
+
+const editorial = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-editorial",
+});
+
+const mono = Roboto_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -106,7 +123,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>
+      <body className={`${sans.variable} ${editorial.variable} ${mono.variable}`}>
         <WalletProvider>{children}</WalletProvider>
       </body>
     </html>
