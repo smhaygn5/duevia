@@ -31,8 +31,8 @@ export function AppSidebar() {
     <aside className="product-sidebar">
       <Link
         className="wordmark"
-        href="/app"
-        aria-label="Duevia workspace home"
+        href="/"
+        aria-label="Duevia home"
       >
         <DueviaLogo compactOnMobile />
       </Link>
