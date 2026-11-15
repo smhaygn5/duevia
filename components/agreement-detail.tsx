@@ -7,6 +7,7 @@ import {
   Circle,
   Clock3,
   Copy,
+  Download,
   ExternalLink,
   FileText,
   ListChecks,
@@ -22,6 +23,7 @@ import { agreementActivityDigest } from "@/lib/agreements/activity-digest";
 import { publicProofUrl } from "@/lib/agreements/public-proof";
 import { ChangeOrderPanel } from "./change-order-panel";
 import { DisputeResolutionRoom } from "./dispute-resolution-room";
+import { agreementBriefFilename, agreementBriefText } from "@/lib/agreements/brief-export";
 
 type DetailModel = {
   publicRef: string;
@@ -124,6 +126,29 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
       setProofCopyState("error");
       window.setTimeout(() => setProofCopyState("idle"), 3_500);
     }
+  }
+
+  function downloadBrief(model: DetailModel, nextStep: string) {
+    const text = agreementBriefText({
+      counterparty: model.counterparty,
+      generatedAt: new Date().toISOString(),
+      milestones: model.milestones,
+      nextStep,
+      publicRef: model.publicRef,
+      released: model.released,
+      status: model.status,
+      title: model.title,
+      total: model.total,
+    });
+    const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = agreementBriefFilename(model);
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
   }
 
   useEffect(() => {
@@ -292,7 +317,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
         eyebrow={isDemo ? `${detail.publicRef} · Demo agreement` : detail.publicRef}
         title={detail.title}
         description={`With ${detail.counterparty} · Arc Testnet`}
-        action={<div className="agreement-header-actions"><StatusBadge status={detail.status} />{!isDemo && <Link className="button button-secondary agreement-clone-link" href={`/app/agreements/new?clone=${encodeURIComponent(detail.publicRef)}`}><Copy size={15} />Clone</Link>}</div>}
+        action={<div className="agreement-header-actions"><StatusBadge status={detail.status} /><button className="button button-secondary agreement-brief-download" type="button" onClick={() => downloadBrief(detail, nextStep)}><Download size={15} />Brief</button>{!isDemo && <Link className="button button-secondary agreement-clone-link" href={`/app/agreements/new?clone=${encodeURIComponent(detail.publicRef)}`}><Copy size={15} />Clone</Link>}</div>}
       />
 
       {isDemo && (
