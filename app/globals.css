@@ -2667,6 +2667,24 @@ button:disabled,
   letter-spacing: -0.04em;
 }
 
+.delivery-pulse { background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 56%), var(--panel-glass); border: 1px solid var(--line-strong); border-radius: 15px; display: grid; gap: 16px; padding: 17px 18px; }
+.delivery-pulse.attention { border-color: color-mix(in srgb, var(--warning) 42%, var(--line-strong)); }
+.delivery-pulse.urgent { border-color: color-mix(in srgb, var(--danger) 45%, var(--line-strong)); }
+.delivery-pulse-heading { align-items: center; display: flex; justify-content: space-between; gap: 12px; }
+.delivery-pulse-heading > span { align-items: center; color: var(--accent-bright); display: inline-flex; font-size: 12px; font-weight: 760; gap: 7px; letter-spacing: .045em; text-transform: uppercase; }
+.delivery-pulse-heading > strong { background: color-mix(in srgb, var(--success) 12%, transparent); border-radius: 999px; color: var(--success); font-size: 12px; padding: 5px 9px; }
+.delivery-pulse.attention .delivery-pulse-heading > strong { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+.delivery-pulse.urgent .delivery-pulse-heading > strong { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.delivery-pulse-grid { align-items: center; display: grid; gap: 18px; grid-template-columns: minmax(128px, .8fr) minmax(0, 1fr) minmax(110px, .55fr); }
+.delivery-pulse-progress { display: grid; gap: 3px; }
+.delivery-pulse-progress > span { color: var(--foreground); font-size: 24px; font-weight: 760; letter-spacing: -.045em; }
+.delivery-pulse-progress small, .delivery-pulse-stages small { color: var(--muted); font-size: 12px; }
+.delivery-pulse-progress i { background: var(--line); border-radius: 999px; display: block; height: 5px; margin-top: 7px; overflow: hidden; }
+.delivery-pulse-progress b { background: var(--accent); border-radius: inherit; display: block; height: 100%; min-width: 3px; }
+.delivery-pulse-grid > p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; }
+.delivery-pulse-stages { border-left: 1px solid var(--line); display: grid; gap: 3px; padding-left: 17px; }
+.delivery-pulse-stages strong { font-size: 18px; letter-spacing: -.035em; }
+
 .agreement-snapshot { border-top: 1px solid var(--line); display: grid; gap: 13px; margin-top: 20px; padding-top: 18px; }
 .agreement-snapshot header { align-items: center; color: var(--muted); display: flex; font-size: 12px; justify-content: space-between; text-transform: uppercase; }
 .agreement-snapshot header > span { align-items: center; color: var(--accent-bright); display: flex; font-weight: 700; gap: 6px; letter-spacing: 0.04em; }

@@ -10,6 +10,7 @@ import {
   Download,
   ExternalLink,
   FileText,
+  Gauge,
   ListChecks,
   LockKeyhole,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import { publicProofUrl } from "@/lib/agreements/public-proof";
 import { ChangeOrderPanel } from "./change-order-panel";
 import { DisputeResolutionRoom } from "./dispute-resolution-room";
 import { agreementBriefFilename, agreementBriefText } from "@/lib/agreements/brief-export";
+import { deliveryPulse } from "@/lib/agreements/delivery-pulse";
 
 type DetailModel = {
   publicRef: string;
@@ -42,6 +44,7 @@ type DetailModel = {
     amount: string;
     status: string;
     due: string;
+    dueAt: number | null;
     reviewDays: number;
     revisionLimit: number;
     dependencyPosition: number | null;
@@ -69,6 +72,7 @@ const demoModel: DetailModel = {
   contractAddress: demoAgreement.contractAddress,
   milestones: demoAgreement.milestones.map((milestone) => ({
     ...milestone,
+    dueAt: Date.parse(milestone.due),
     dependencyPosition: null,
     acceptanceChecklist: [milestone.description],
   })),
@@ -195,6 +199,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
               day: "numeric",
               year: "numeric",
             }),
+            dueAt: Number(milestone.due_at),
             reviewDays: Number(milestone.review_window_seconds) / 86_400,
             revisionLimit: Number(milestone.revision_limit),
             dependencyPosition: milestone.dependency_position ? Number(milestone.dependency_position) : null,
@@ -306,6 +311,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
         ? "Provider delivery"
         : "Counterparty action";
   const activityDigest = agreementActivityDigest(detail.activities);
+  const pulse = deliveryPulse(detail.milestones);
 
   return (
     <>
@@ -350,6 +356,18 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
               <small>USDC</small>
             </article>
           </div>
+
+          <section className={`delivery-pulse ${pulse.tone}`} aria-label="Delivery pulse">
+            <div className="delivery-pulse-heading">
+              <span><Gauge size={16} /> Delivery pulse</span>
+              <strong>{pulse.label}</strong>
+            </div>
+            <div className="delivery-pulse-grid">
+              <div className="delivery-pulse-progress"><span>{pulse.completionPercent}%</span><small>stages released</small><i><b style={{ width: `${pulse.completionPercent}%` }} /></i></div>
+              <p>{pulse.detail}</p>
+              <div className="delivery-pulse-stages"><strong>{pulse.releasedStages}/{detail.milestones.length}</strong><small>milestones settled</small></div>
+            </div>
+          </section>
 
           <section className="panel milestone-timeline-panel">
             <header className="panel-header">
