@@ -23,6 +23,8 @@ import { AppHeader } from "./app-header";
 import { StatusBadge } from "./status-badge";
 import { useWallet } from "./wallet-provider";
 import { assessAgreementHealth } from "@/lib/agreements/agreement-health";
+import { deadlineAlerts } from "@/lib/agreements/deadline-alerts";
+import { loadWorkspacePreferences, preferencesChangedEvent } from "@/lib/workspace-preferences";
 
 function titleCase(value: string) {
   return value
@@ -57,6 +59,14 @@ export function DashboardOverview() {
   } | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [workspacePreferences, setWorkspacePreferences] = useState(() => loadWorkspacePreferences());
+
+  useEffect(() => {
+    const refreshPreferences = () => setWorkspacePreferences(loadWorkspacePreferences());
+    window.addEventListener(preferencesChangedEvent, refreshPreferences);
+    window.addEventListener("storage", refreshPreferences);
+    return () => { window.removeEventListener(preferencesChangedEvent, refreshPreferences); window.removeEventListener("storage", refreshPreferences); };
+  }, []);
 
   useEffect(() => {
     if (!wallet.authenticated || !wallet.address) return;
@@ -152,6 +162,20 @@ export function DashboardOverview() {
   );
   const forecastTotal = (items: typeof settlementForecastItems) =>
     items.reduce((total, item) => total + BigInt(item.amountMinor), 0n).toString();
+  const activeDeadlineRisks = isVerified ? dashboard!.deadlineRisks : demoDeadlineRisks;
+
+  useEffect(() => {
+    if (!wallet.authenticated || !workspacePreferences.browserAlerts || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const storageKey = `duevia-deadline-alerts:${wallet.address ?? "unknown"}`;
+    let sent = new Set<string>();
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]") as unknown;
+      if (Array.isArray(stored)) sent = new Set(stored.filter((value): value is string => typeof value === "string"));
+    } catch { /* A corrupted local value should never block the dashboard. */ }
+    const next = deadlineAlerts(activeDeadlineRisks, workspacePreferences.alerts).filter((alert) => !sent.has(alert.id));
+    next.forEach((alert) => { new Notification("Duevia deadline", { body: `${alert.title}\n${alert.body}`, tag: alert.id }); sent.add(alert.id); });
+    try { window.localStorage.setItem(storageKey, JSON.stringify([...sent].slice(-100))); } catch { /* Alerts still work in this session. */ }
+  }, [activeDeadlineRisks, wallet.address, wallet.authenticated, workspacePreferences.alerts, workspacePreferences.browserAlerts]);
 
   return (
     <>
@@ -277,7 +301,7 @@ export function DashboardOverview() {
               <span className="risk-count">{isVerified ? dashboard!.deadlineRisks.length : 2} open</span>
             </header>
             <div className="risk-list">
-              {(isVerified ? dashboard!.deadlineRisks : demoDeadlineRisks).map((risk) => (
+              {activeDeadlineRisks.map((risk) => (
                 <Link className={`risk-row ${risk.level}`} key={`${risk.agreementRef}-${risk.title}`} href={`/app/agreements/${risk.agreementRef.toLowerCase()}`}>
                   <span className="risk-icon"><AlertTriangle size={15} /></span>
                   <div><small>{risk.agreementRef} · {risk.label}</small><strong>{risk.title}</strong><p>{risk.action}</p></div>

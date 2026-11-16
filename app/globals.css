@@ -2696,6 +2696,16 @@ button:disabled,
 .agreement-snapshot dl > div { align-items: baseline; display: flex; gap: 12px; justify-content: space-between; }
 .agreement-snapshot dt { color: var(--muted); font-size: 12px; }
 .agreement-snapshot dd { color: var(--foreground); font-size: 12px; font-weight: 700; margin: 0; text-align: right; }
+.milestone-explorer-link { align-items: center; color: var(--accent-bright); display: inline-flex; font-size: 12px; font-weight: 680; gap: 5px; margin-top: 9px; text-decoration: none; }
+.milestone-explorer-link:hover { text-decoration: underline; }
+.activity-explorer-link { align-items: center; color: var(--accent-bright); display: inline-flex; font-size: 12px; font-weight: 680; gap: 5px; margin-top: 5px; text-decoration: none; }
+.activity-explorer-link:hover { text-decoration: underline; }
+
+.settings-browser-alert { align-items: flex-start; background: color-mix(in srgb, var(--accent) 6%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 17%, var(--line)); border-radius: 11px; display: flex; gap: 10px; margin-top: 12px; padding: 12px; }
+.settings-browser-alert input { accent-color: var(--accent); margin-top: 3px; }
+.settings-browser-alert span { display: grid; gap: 3px; }
+.settings-browser-alert strong { font-size: 12px; }
+.settings-browser-alert small { color: var(--muted); font-size: 12px; line-height: 1.45; }
 
 .milestone-timeline-panel,
 .activity-panel {

@@ -12,12 +12,25 @@ export function SettingsForm() {
   const [workspaceName, setWorkspaceName] = useState(preferences.workspaceName);
   const [email, setEmail] = useState(preferences.email);
   const [alerts, setAlerts] = useState(preferences.alerts);
+  const [browserAlerts, setBrowserAlerts] = useState(preferences.browserAlerts);
   const [timeReference, setTimeReference] = useState<TimeReference>(preferences.timeReference);
   const [saved, setSaved] = useState(false);
 
-  function save(event: FormEvent) {
+  async function save(event: FormEvent) {
     event.preventDefault();
+    let canUseBrowserAlerts = browserAlerts;
+    if (browserAlerts) {
+      if (typeof Notification === "undefined") {
+        canUseBrowserAlerts = false;
+      } else if (Notification.permission === "default") {
+        canUseBrowserAlerts = (await Notification.requestPermission()) === "granted";
+      } else if (Notification.permission !== "granted") {
+        canUseBrowserAlerts = false;
+      }
+      setBrowserAlerts(canUseBrowserAlerts);
+    }
     saveWorkspacePreferences({
+      browserAlerts: canUseBrowserAlerts,
       workspaceName: workspaceName.trim() || defaultWorkspacePreferences.workspaceName,
       email: email.trim(),
       alerts: alerts as "important" | "all" | "none",
@@ -61,7 +74,7 @@ export function SettingsForm() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
               />
-              <small>Only milestone and settlement alerts are sent.</small>
+              <small>Saved locally for future email delivery. This testnet build does not send email.</small>
             </label>
           </div>
         </section>
@@ -160,6 +173,10 @@ export function SettingsForm() {
               </label>
             ))}
           </fieldset>
+          <label className="settings-browser-alert">
+            <input type="checkbox" checked={browserAlerts} onChange={(event) => setBrowserAlerts(event.target.checked)} />
+            <span><strong>Browser deadline alerts</strong><small>Show local alerts for important milestone deadlines while this browser is available. No email is sent from this preference.</small></span>
+          </label>
         </section>
 
         <div className="settings-actions">

@@ -1,6 +1,7 @@
 export type TimeReference = "utc" | "local";
 
 export type WorkspacePreferences = {
+  browserAlerts: boolean;
   workspaceName: string;
   email: string;
   alerts: "important" | "all" | "none";
@@ -11,6 +12,7 @@ const storageKey = "duevia-workspace-preferences";
 export const preferencesChangedEvent = "duevia-workspace-preferences-change";
 
 export const defaultWorkspacePreferences: WorkspacePreferences = {
+  browserAlerts: false,
   workspaceName: "Duevia workspace",
   email: "",
   alerts: "important",
@@ -24,6 +26,7 @@ export function loadWorkspacePreferences(): WorkspacePreferences {
     if (!raw) return defaultWorkspacePreferences;
     const parsed = JSON.parse(raw) as Partial<WorkspacePreferences>;
     return {
+      browserAlerts: parsed.browserAlerts === true,
       workspaceName: typeof parsed.workspaceName === "string" ? parsed.workspaceName : defaultWorkspacePreferences.workspaceName,
       email: typeof parsed.email === "string" ? parsed.email : defaultWorkspacePreferences.email,
       alerts: parsed.alerts === "all" || parsed.alerts === "none" ? parsed.alerts : "important",

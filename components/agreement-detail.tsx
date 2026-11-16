@@ -26,6 +26,7 @@ import { ChangeOrderPanel } from "./change-order-panel";
 import { DisputeResolutionRoom } from "./dispute-resolution-room";
 import { agreementBriefFilename, agreementBriefText } from "@/lib/agreements/brief-export";
 import { deliveryPulse } from "@/lib/agreements/delivery-pulse";
+import { ARC } from "@/lib/arc/config";
 
 type DetailModel = {
   publicRef: string;
@@ -47,6 +48,7 @@ type DetailModel = {
     dueAt: number | null;
     reviewDays: number;
     revisionLimit: number;
+    releasedTxHash: string | null;
     dependencyPosition: number | null;
     acceptanceChecklist: string[];
   }>;
@@ -75,6 +77,7 @@ const demoModel: DetailModel = {
     dueAt: Date.parse(milestone.due),
     dependencyPosition: null,
     acceptanceChecklist: [milestone.description],
+    releasedTxHash: null,
   })),
   activities: demoAgreement.activities.map((activity, index) => ({
     ...activity,
@@ -202,6 +205,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
             dueAt: Number(milestone.due_at),
             reviewDays: Number(milestone.review_window_seconds) / 86_400,
             revisionLimit: Number(milestone.revision_limit),
+            releasedTxHash: milestone.released_tx_hash ? String(milestone.released_tx_hash) : null,
             dependencyPosition: milestone.dependency_position ? Number(milestone.dependency_position) : null,
             acceptanceChecklist: parseChecklist(milestone.acceptance_checklist, String(milestone.description)),
           })),
@@ -412,6 +416,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
                           ? ` · requires stage ${String(milestone.dependencyPosition).padStart(2, "0")} approval`
                           : ""}
                       </small>
+                      {milestone.releasedTxHash ? <a className="milestone-explorer-link" href={`${ARC.explorerUrl}/tx/${milestone.releasedTxHash}`} target="_blank" rel="noreferrer">View settlement on Arc Explorer <ExternalLink size={12} /></a> : null}
                     </div>
                     <strong>{milestone.amount} USDC</strong>
                   </article>
@@ -458,6 +463,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
                   <div>
                     <strong>{activity.title}</strong>
                     <p>{activity.detail}</p>
+                    {activity.txHash ? <a className="activity-explorer-link" href={`${ARC.explorerUrl}/tx/${activity.txHash}`} target="_blank" rel="noreferrer">Open on Arc Explorer <ExternalLink size={12} /></a> : null}
                   </div>
                   <time>{activity.time}</time>
                 </div>
