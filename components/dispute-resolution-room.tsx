@@ -2,6 +2,7 @@
 
 import {
   Check,
+  Download,
   ExternalLink,
   FileCheck2,
   FileKey2,
@@ -22,6 +23,7 @@ import {
   type DisputeResolution,
   type DisputeStatus,
 } from "@/lib/agreements/disputes";
+import { createDisputeBrief, disputeBriefFilename } from "@/lib/agreements/dispute-brief";
 import { useWallet } from "./wallet-provider";
 
 type DisputeRecord = {
@@ -316,6 +318,37 @@ export function DisputeResolutionRoom({
     setError(null);
   }
 
+  function downloadBrief() {
+    if (!selected) return;
+    const content = createDisputeBrief({
+      agreementRef,
+      dispute: {
+        category: selected.category,
+        id: selected.id,
+        milestonePosition: selected.milestone_position,
+        openedAt: selected.opened_at,
+        openedByRole: selected.opened_by_role,
+        status: selected.status,
+      },
+      events: selectedEvents.map((event) => ({
+        actorRole: event.actor_role,
+        evidenceSha256: event.evidence_sha256,
+        evidenceUrl: event.evidence_url,
+        kind: event.kind,
+        occurredAt: event.occurred_at,
+        resolutionType: event.resolution_type,
+        signature: event.signature,
+        statement: event.statement,
+      })),
+    });
+    const url = URL.createObjectURL(new Blob([content], { type: "text/markdown;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = disputeBriefFilename(agreementRef, selected.id);
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className="panel dispute-room">
       <header className="panel-header dispute-room-heading">
@@ -328,6 +361,7 @@ export function DisputeResolutionRoom({
         </div>
         <div className="dispute-heading-actions">
           {demo && <span className="dispute-demo-badge">Demo only</span>}
+          {selected ? <button className="button button-quiet" type="button" onClick={downloadBrief}><Download size={14} /> Export record</button> : null}
           {!hasActiveDispute && !demo && (
             <button className="button button-quiet" type="button" onClick={() => setMode("open")}>
               <ShieldAlert size={14} /> Open dispute
