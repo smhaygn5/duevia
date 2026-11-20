@@ -17,3 +17,8 @@ export function deadlineAlerts(risks: AlertableDeadlineRisk[], preference: "impo
     title: `${risk.label}: ${risk.title}`,
   }));
 }
+
+export function unseenDeadlineAlerts(alerts: DeadlineAlert[], sentIds: Iterable<string>) {
+  const sent = new Set(sentIds);
+  return alerts.filter((alert) => !sent.has(alert.id));
+}
