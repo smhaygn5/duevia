@@ -49,6 +49,9 @@ type DisputeEvent = {
   evidence_sha256: string | null;
   resolution_type: DisputeResolution | null;
   signature: string;
+  /** Exact text the wallet signed; null for legacy events recorded before it was stored. */
+  signed_message?: string | null;
+  signer_address?: string | null;
   occurred_at: number;
   actor_role: "client" | "provider";
   actor_wallet_id: string;
@@ -338,6 +341,8 @@ export function DisputeResolutionRoom({
         occurredAt: event.occurred_at,
         resolutionType: event.resolution_type,
         signature: event.signature,
+        signedMessage: event.signed_message ?? null,
+        signerAddress: event.signer_address ?? null,
         statement: event.statement,
       })),
     });

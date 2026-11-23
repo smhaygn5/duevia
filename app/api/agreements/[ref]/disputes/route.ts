@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAddress } from "viem";
 import { z } from "zod";
 import { ensureRuntimeSchema, getRawDb } from "@/db/runtime";
 import { getWalletSession, type WalletSession } from "@/lib/auth/server";
@@ -93,11 +94,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ ref
               dispute_events.statement, dispute_events.evidence_url,
               dispute_events.evidence_sha256, dispute_events.resolution_type,
               dispute_events.signature, dispute_events.occurred_at,
+              dispute_events.signed_message,
+              COALESCE(dispute_events.signer_address, actor_wallet.address) AS signer_address,
               CASE WHEN dispute_events.actor_wallet_id = agreements.client_wallet_id THEN 'client' ELSE 'provider' END AS actor_role,
               dispute_events.actor_wallet_id
        FROM dispute_events
        INNER JOIN disputes ON disputes.id = dispute_events.dispute_id
        INNER JOIN agreements ON agreements.id = disputes.agreement_id
+       LEFT JOIN wallets AS actor_wallet ON actor_wallet.id = dispute_events.actor_wallet_id
        WHERE disputes.agreement_id = ?
        ORDER BY dispute_events.occurred_at ASC LIMIT 150`,
     ).bind(agreement.id).all();
@@ -168,9 +172,9 @@ async function openDispute(input: z.infer<typeof openSchema>, agreement: Agreeme
        VALUES (?, ?, ?, ?, ?, 'open', ?, ?)`,
     ).bind(disputeId, agreement.id, milestoneId, session.walletId, input.category, input.signedAt, input.signedAt),
     db.prepare(
-      `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, signature, occurred_at)
-       VALUES (?, ?, ?, 'opened', ?, ?, ?)`,
-    ).bind(eventId, disputeId, session.walletId, statement, input.signature.toLowerCase(), input.signedAt),
+      `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, signature, signed_message, signer_address, occurred_at)
+       VALUES (?, ?, ?, 'opened', ?, ?, ?, ?, ?)`,
+    ).bind(eventId, disputeId, session.walletId, statement, input.signature.toLowerCase(), message, getAddress(session.address), input.signedAt),
     activityStatement(agreement.id, milestoneId, session.walletId, "dispute.opened", { category: input.category, disputeId }, input.signedAt),
   ]);
   return NextResponse.json({ disputeId, status: "open" }, { status: 201 });
@@ -189,9 +193,9 @@ async function addEvidence(input: z.infer<typeof evidenceSchema>, agreement: Agr
   const db = getRawDb();
   await db.batch([
     db.prepare(
-      `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, evidence_url, evidence_sha256, signature, occurred_at)
-       VALUES (?, ?, ?, 'evidence', ?, ?, ?, ?, ?)`,
-    ).bind(eventId, input.disputeId, session.walletId, statement, evidenceUrl, evidenceSha256, input.signature.toLowerCase(), input.signedAt),
+      `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, evidence_url, evidence_sha256, signature, signed_message, signer_address, occurred_at)
+       VALUES (?, ?, ?, 'evidence', ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(eventId, input.disputeId, session.walletId, statement, evidenceUrl, evidenceSha256, input.signature.toLowerCase(), message, getAddress(session.address), input.signedAt),
     db.prepare(`UPDATE disputes SET updated_at = ? WHERE id = ?`).bind(input.signedAt, input.disputeId),
     activityStatement(agreement.id, null, session.walletId, "dispute.evidence_added", { disputeId: input.disputeId }, input.signedAt),
   ]);
@@ -209,9 +213,9 @@ async function proposeResolution(input: z.infer<typeof proposeSchema>, agreement
   const db = getRawDb();
   await db.batch([
     db.prepare(
-      `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, resolution_type, signature, occurred_at)
-       VALUES (?, ?, ?, 'resolution_proposed', ?, ?, ?, ?)`,
-    ).bind(eventId, input.disputeId, session.walletId, note, input.resolution, input.signature.toLowerCase(), input.signedAt),
+      `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, resolution_type, signature, signed_message, signer_address, occurred_at)
+       VALUES (?, ?, ?, 'resolution_proposed', ?, ?, ?, ?, ?, ?)`,
+    ).bind(eventId, input.disputeId, session.walletId, note, input.resolution, input.signature.toLowerCase(), message, getAddress(session.address), input.signedAt),
     db.prepare(
       `UPDATE disputes SET status = 'resolution_pending', proposed_resolution = ?, proposed_by_wallet_id = ?, proposal_event_id = ?, updated_at = ?
        WHERE id = ? AND status = 'open'`,
@@ -247,9 +251,9 @@ async function decideResolution(input: z.infer<typeof decisionSchema>, agreement
   const accepted = input.action === "accept";
   await db.batch([
     db.prepare(
-      `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, resolution_type, signature, occurred_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(eventId, input.disputeId, session.walletId, accepted ? "resolution_accepted" : "resolution_rejected", statement, dispute.resolution_type, input.signature.toLowerCase(), input.signedAt),
+      `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, resolution_type, signature, signed_message, signer_address, occurred_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(eventId, input.disputeId, session.walletId, accepted ? "resolution_accepted" : "resolution_rejected", statement, dispute.resolution_type, input.signature.toLowerCase(), message, getAddress(session.address), input.signedAt),
     accepted
       ? db.prepare(
           `UPDATE disputes SET status = 'resolved', accepted_by_wallet_id = ?, resolved_at = ?, updated_at = ?

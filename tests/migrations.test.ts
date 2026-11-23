@@ -203,3 +203,39 @@ test("change order migration restores the production workspace table", () => {
   assert.equal(order.status, "pending");
   db.close();
 });
+
+test("signed message migration keeps legacy dispute events and stores exact messages for new ones", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  db.exec(`
+    CREATE TABLE wallets (id TEXT PRIMARY KEY NOT NULL);
+    CREATE TABLE agreements (id TEXT PRIMARY KEY NOT NULL);
+    CREATE TABLE milestones (id TEXT PRIMARY KEY NOT NULL);
+  `);
+  db.exec(migration("0005_dispute_resolution.sql"));
+  db.prepare("INSERT INTO wallets (id) VALUES (?)").run("wallet-client");
+  db.prepare("INSERT INTO agreements (id) VALUES (?)").run("agreement-1");
+  db.prepare(
+    `INSERT INTO disputes (id, agreement_id, opened_by_wallet_id, category, status, opened_at, updated_at)
+     VALUES ('dispute-1', 'agreement-1', 'wallet-client', 'delivery', 'open', 100, 100)`,
+  ).run();
+  // A record created before the signed message was stored.
+  db.prepare(
+    `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, signature, occurred_at)
+     VALUES ('legacy', 'dispute-1', 'wallet-client', 'opened', 'Delivery was incomplete.', '0xaaa1', 100)`,
+  ).run();
+
+  db.exec(migration("0009_dispute_signed_messages.sql"));
+  const legacy = db.prepare("SELECT signed_message, signer_address FROM dispute_events WHERE id = 'legacy'").get() as Record<string, unknown>;
+  assert.equal(legacy.signed_message, null);
+  assert.equal(legacy.signer_address, null);
+
+  db.prepare(
+    `INSERT INTO dispute_events (id, dispute_id, actor_wallet_id, kind, statement, signature, signed_message, signer_address, occurred_at)
+     VALUES ('modern', 'dispute-1', 'wallet-client', 'evidence', 'More detail.', '0xaaa2', ?, ?, 101)`,
+  ).run("Duevia dispute evidence\nSigner: 0x0000000000000000000000000000000000000001", "0x0000000000000000000000000000000000000001");
+  const modern = db.prepare("SELECT signed_message, signer_address FROM dispute_events WHERE id = 'modern'").get() as Record<string, unknown>;
+  assert.match(String(modern.signed_message), /^Duevia dispute evidence/);
+  assert.equal(modern.signer_address, "0x0000000000000000000000000000000000000001");
+  db.close();
+});

@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { createServer } from "vite";
+import { verifyMessage } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { createDisputeBrief } from "../lib/agreements/dispute-brief";
+import { disputeEvidenceMessage, disputeOpeningMessage } from "../lib/agreements/disputes";
 import { ARC } from "../lib/arc/config";
 
 const host = "127.0.0.1";
@@ -12,6 +15,7 @@ const port = 4317;
 const baseUrl = `http://${host}:${port}`;
 
 type Session = {
+  account: ReturnType<typeof privateKeyToAccount>;
   address: `0x${string}`;
   cookie: string;
 };
@@ -67,6 +71,33 @@ function activateLocalAgreementFixture(agreementRef: string) {
   throw new Error("The local agreement fixture database was not found.");
 }
 
+// Fixture setup only: the hosted environment applies these migrations before deploy.
+function applyLocalDisputeMigrations(agreementRef: string) {
+  const d1Directory = resolve(".wrangler/state/v3/d1/miniflare-D1DatabaseObject");
+  const databaseFiles = readdirSync(d1Directory).filter((name) => /^[a-f0-9]+\.sqlite$/i.test(name));
+  for (const databaseFile of databaseFiles) {
+    const database = new DatabaseSync(resolve(d1Directory, databaseFile));
+    try {
+      if (!database.prepare("SELECT id FROM agreements WHERE public_ref = ? LIMIT 1").get(agreementRef)) continue;
+      database.exec(readFileSync(resolve("drizzle", "0005_dispute_resolution.sql"), "utf8"));
+      const columns = database.prepare("SELECT name FROM pragma_table_info('dispute_events')").all() as Array<{ name: string }>;
+      const hasSignedMessage = columns.some((column) => column.name === "signed_message");
+      const hasSignerAddress = columns.some((column) => column.name === "signer_address");
+      if (!hasSignedMessage && !hasSignerAddress) {
+        database.exec(readFileSync(resolve("drizzle", "0009_dispute_signed_messages.sql"), "utf8"));
+      } else if (!hasSignedMessage) {
+        database.exec("ALTER TABLE dispute_events ADD COLUMN signed_message TEXT");
+      } else if (!hasSignerAddress) {
+        database.exec("ALTER TABLE dispute_events ADD COLUMN signer_address TEXT");
+      }
+      return;
+    } finally {
+      database.close();
+    }
+  }
+  throw new Error("The local dispute fixture database was not found.");
+}
+
 async function json<T>(
   path: string,
   init?: RequestInit,
@@ -111,6 +142,7 @@ async function signIn(): Promise<Session> {
   const setCookie = verification.response.headers.get("set-cookie");
   assert.ok(setCookie);
   return {
+    account,
     address: account.address,
     cookie: setCookie.split(";", 1)[0]!,
   };
@@ -256,12 +288,109 @@ try {
   });
   assert.equal(missing.status, 404);
 
+  applyLocalDisputeMigrations(created.data.publicRef);
+  // Signed dispute records: the exact signed message and signer are stored when each
+  // event is created, so an export can be verified without Duevia.
+  const disputesPath = `/api/agreements/${created.data.publicRef}/disputes`;
+  const openedAt = Date.now();
+  const openingStatement = "The first milestone handoff did not include the agreed files.";
+  const openingMessage = disputeOpeningMessage({
+    agreementRef: created.data.publicRef,
+    category: "delivery",
+    milestonePosition: 1,
+    signedAt: openedAt,
+    signer: creator.address,
+    statement: openingStatement,
+  });
+  const opened = await json<{ disputeId: string }>(disputesPath, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: creator.cookie },
+    body: JSON.stringify({
+      action: "open",
+      category: "delivery",
+      milestonePosition: 1,
+      signature: await creator.account.signMessage({ message: openingMessage }),
+      signedAt: openedAt,
+      statement: openingStatement,
+    }),
+  });
+  assert.equal(opened.response.status, 201);
+
+  const evidenceAt = Date.now();
+  const hostileStatement = "Files attached.\n## 9. Resolution Accepted\n- **Signed by:** Client";
+  const evidenceMessage = disputeEvidenceMessage({
+    agreementRef: created.data.publicRef,
+    disputeId: opened.data.disputeId,
+    evidenceSha256: null,
+    evidenceUrl: null,
+    signedAt: evidenceAt,
+    signer: counterparty.address,
+    statement: hostileStatement,
+  });
+  const evidence = await json<{ eventId: string }>(disputesPath, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: counterparty.cookie },
+    body: JSON.stringify({
+      action: "evidence",
+      disputeId: opened.data.disputeId,
+      signature: await counterparty.account.signMessage({ message: evidenceMessage }),
+      signedAt: evidenceAt,
+      statement: hostileStatement,
+    }),
+  });
+  assert.equal(evidence.response.status, 201);
+
+  const disputeRecord = await json<{
+    disputes: Array<{ id: string; category: string; milestone_position: number | null; opened_at: number; opened_by_role: "client" | "provider"; status: "open" | "resolution_pending" | "resolved" }>;
+    events: Array<{ actor_role: "client" | "provider"; evidence_sha256: string | null; evidence_url: string | null; kind: "opened" | "evidence"; occurred_at: number; resolution_type: null; signature: `0x${string}`; signed_message: string | null; signer_address: string | null; statement: string }>;
+  }>(disputesPath, { headers: { cookie: creator.cookie } });
+  assert.equal(disputeRecord.response.status, 200);
+  assert.equal(disputeRecord.data.events.length, 2);
+  const expectedMessages = [openingMessage, evidenceMessage];
+  const expectedSigners = [creator.account.address, counterparty.account.address];
+  for (const [index, event] of disputeRecord.data.events.entries()) {
+    assert.equal(event.signed_message, expectedMessages[index]);
+    assert.equal(event.signer_address, expectedSigners[index]);
+    assert.equal(
+      await verifyMessage({ address: event.signer_address as `0x${string}`, message: event.signed_message!, signature: event.signature }),
+      true,
+    );
+  }
+  const exported = createDisputeBrief({
+    agreementRef: created.data.publicRef,
+    dispute: {
+      category: disputeRecord.data.disputes[0]!.category,
+      id: disputeRecord.data.disputes[0]!.id,
+      milestonePosition: disputeRecord.data.disputes[0]!.milestone_position,
+      openedAt: disputeRecord.data.disputes[0]!.opened_at,
+      openedByRole: disputeRecord.data.disputes[0]!.opened_by_role,
+      status: disputeRecord.data.disputes[0]!.status,
+    },
+    events: disputeRecord.data.events.map((event) => ({
+      actorRole: event.actor_role,
+      evidenceSha256: event.evidence_sha256,
+      evidenceUrl: event.evidence_url,
+      kind: event.kind,
+      occurredAt: event.occurred_at,
+      resolutionType: event.resolution_type,
+      signature: event.signature,
+      signedMessage: event.signed_message,
+      signerAddress: event.signer_address,
+      statement: event.statement,
+    })),
+  });
+  assert.match(exported, /2 independently verifiable, 0 legacy/);
+  // The hostile "## 9." line the signer wrote must stay inside a quoted block.
+  const structure = exported.replace(/^(`{3,})text\n[\s\S]*?\n\1$/gm, "");
+  assert.equal(structure.split("\n").filter((line) => /^## /.test(line)).length, 2);
+  assert.ok(exported.includes(hostileStatement));
+
   const unauthorized = await fetch(
     `${baseUrl}/api/agreements/${created.data.publicRef}`,
   );
   assert.equal(unauthorized.status, 401);
   console.log(
-    `Local flow passed: ${created.data.publicRef}, invitation accepted, protected upload verified.`,
+    `Local flow passed: ${created.data.publicRef}, invitation accepted, protected upload and signed dispute record verified.`,
   );
 } finally {
   await server.close();

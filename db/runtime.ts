@@ -236,6 +236,28 @@ export function ensureRuntimeSchema() {
 async function ensureMilestoneColumns(db: D1Database) {
   await ensureMilestoneColumn(db, "dependency_position", "INTEGER");
   await ensureMilestoneColumn(db, "acceptance_checklist", "TEXT NOT NULL DEFAULT '[]'");
+  await ensureDisputeEventColumns(db);
+}
+
+/**
+ * Dispute events keep the exact signed message and signer so an export can be
+ * verified independently. Older rows stay NULL and are exported as legacy
+ * records. The table only exists after the dispute migration has run.
+ */
+async function ensureDisputeEventColumns(db: D1Database) {
+  const table = await db
+    .prepare(`SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type = 'table' AND name = 'dispute_events'`)
+    .first<{ table_count: number }>();
+  if (Number(table?.table_count ?? 0) === 0) return;
+  for (const name of ["signed_message", "signer_address"]) {
+    const column = await db
+      .prepare(`SELECT COUNT(*) AS column_count FROM pragma_table_info('dispute_events') WHERE name = ?`)
+      .bind(name)
+      .first<{ column_count: number }>();
+    if (Number(column?.column_count ?? 0) === 0) {
+      await db.prepare(`ALTER TABLE dispute_events ADD COLUMN ${name} TEXT`).run();
+    }
+  }
 }
 
 async function ensureMilestoneColumn(db: D1Database, name: string, definition: string) {

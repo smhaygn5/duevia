@@ -131,6 +131,10 @@ async function requestVerifiedDashboard(): Promise<DashboardPayload> {
         title: milestone.title,
         agreementRef: payload.agreement.public_ref,
         currentRole: payload.agreement.current_role,
+        reviewClosesAt: reviewClosesAt(
+          payload.submissions.find((submission) => submission.milestone_position === milestone.position)?.submitted_at,
+          milestone.review_window_seconds,
+        ),
       })),
     ),
   );
@@ -183,4 +187,10 @@ export function loadVerifiedDashboard(force = false): Promise<DashboardPayload> 
     promise,
   };
   return promise;
+}
+
+/** End of a submitted milestone's review window, or null when timing is unknown. */
+function reviewClosesAt(submittedAt: number | null | undefined, reviewWindowSeconds: number | null | undefined) {
+  if (typeof submittedAt !== "number" || typeof reviewWindowSeconds !== "number") return null;
+  return submittedAt + reviewWindowSeconds * 1_000;
 }

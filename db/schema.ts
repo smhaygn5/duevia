@@ -302,6 +302,10 @@ export const disputeEvents = sqliteTable(
     evidenceSha256: text("evidence_sha256"),
     resolutionType: text("resolution_type"),
     signature: text("signature").notNull(),
+    /** Exact text the wallet signed. Null for events recorded before this was stored. */
+    signedMessage: text("signed_message"),
+    /** Checksummed wallet that produced the signature. */
+    signerAddress: text("signer_address"),
     occurredAt: integer("occurred_at").notNull(),
   },
   (table) => [

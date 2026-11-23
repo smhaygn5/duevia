@@ -47,6 +47,8 @@ type DetailModel = {
     due: string;
     dueAt: number | null;
     reviewDays: number;
+    /** When the latest synced submission was recorded (ms), if any. */
+    submittedAt?: number | null;
     revisionLimit: number;
     releasedTxHash: string | null;
     dependencyPosition: number | null;
@@ -168,6 +170,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
           agreement?: Record<string, string | number | null>;
           milestones?: Array<Record<string, string | number | null>>;
           activities?: Array<Record<string, string | number | null>>;
+          submissions?: Array<Record<string, string | number | null>>;
           message?: string;
         };
         if (!response.ok || !data.agreement || !data.milestones) {
@@ -204,6 +207,11 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
             }),
             dueAt: Number(milestone.due_at),
             reviewDays: Number(milestone.review_window_seconds) / 86_400,
+            submittedAt: (() => {
+              // Submissions are returned newest first, so the first match is the current one.
+              const latest = data.submissions?.find((submission) => Number(submission.milestone_position) === Number(milestone.position));
+              return latest?.submitted_at == null ? null : Number(latest.submitted_at);
+            })(),
             revisionLimit: Number(milestone.revision_limit),
             releasedTxHash: milestone.released_tx_hash ? String(milestone.released_tx_hash) : null,
             dependencyPosition: milestone.dependency_position ? Number(milestone.dependency_position) : null,
@@ -315,7 +323,14 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
         ? "Provider delivery"
         : "Counterparty action";
   const activityDigest = agreementActivityDigest(detail.activities);
-  const pulse = deliveryPulse(detail.milestones);
+  const pulse = deliveryPulse(detail.milestones.map((milestone) => ({
+    dueAt: milestone.dueAt,
+    position: milestone.position,
+    reviewWindowSeconds: Math.round(milestone.reviewDays * 86_400),
+    status: milestone.status,
+    submittedAt: milestone.submittedAt ?? null,
+    title: milestone.title,
+  })));
 
   return (
     <>
