@@ -4409,6 +4409,8 @@ button:disabled,
 .change-order-list small { color: var(--muted); display: block; font-size: 12px; margin-bottom: 5px; text-transform: capitalize; }
 .change-order-list strong { display: block; font-size: 12px; }
 .change-order-list p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 5px 0 0; }
+.change-order-proof { align-items: center; color: var(--success); display: flex; font-size: 12px; font-style: normal; font-weight: 650; gap: 5px; margin-top: 8px; }
+.change-order-proof.legacy { color: var(--warning); }
 .change-order-list .button { font-size: 12px; min-height: 31px; padding: 7px 10px; }
 .change-order-empty { color: var(--muted); font-size: 12px; margin: 3px 0 0; }
 .change-order-note { border-top: 1px solid var(--line); color: var(--muted); display: block; font-size: 12px; line-height: 1.45; margin-top: 4px; padding-top: 13px; }

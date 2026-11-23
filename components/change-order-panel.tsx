@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, FilePenLine, Plus } from "lucide-react";
+import { Check, FileKey2, FilePenLine, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
-import { canAcceptChangeOrder } from "@/lib/agreements/change-order";
+import { canAcceptChangeOrder, changeOrderAcceptanceMessage, changeOrderProposalMessage, type ChangeOrderScope } from "@/lib/agreements/change-order";
+import { useWallet } from "./wallet-provider";
 
 type ChangeOrder = {
   id: string;
@@ -10,12 +11,17 @@ type ChangeOrder = {
   accepted_by_wallet_id: string | null;
   title: string;
   detail: string;
-  scope: "scope" | "timeline" | "delivery" | "commercial";
+  scope: ChangeOrderScope;
   status: "pending" | "accepted";
+  proposer_signature: string | null;
+  proposer_address: string | null;
+  acceptance_signature: string | null;
+  acceptance_address: string | null;
   created_at: number;
 };
 
 export function ChangeOrderPanel({ agreementRef }: { agreementRef: string }) {
+  const wallet = useWallet();
   const [orders, setOrders] = useState<ChangeOrder[]>([]);
   const [walletId, setWalletId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -52,26 +58,35 @@ export function ChangeOrderPanel({ agreementRef }: { agreementRef: string }) {
   async function create() {
     setBusy(true); setError(null);
     try {
-      const response = await fetch(`/api/agreements/${agreementRef}/change-orders`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "create", ...form }) });
+      if (!wallet.address) throw new Error("Sign in with an agreement wallet first.");
+      const id = crypto.randomUUID();
+      const signedAt = Date.now();
+      const message = changeOrderProposalMessage({ agreementRef, detail: form.detail, id, scope: form.scope as ChangeOrderScope, signedAt, signer: wallet.address, title: form.title });
+      const signature = await wallet.signMessage(message);
+      const response = await fetch(`/api/agreements/${agreementRef}/change-orders`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "create", id, ...form, signature, signedAt }) });
       const payload = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(payload.message ?? "Change order could not be created.");
       setForm({ title: "", detail: "", scope: "scope" }); setOpen(false); await load();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Change order could not be created."); } finally { setBusy(false); }
   }
-  async function accept(id: string) {
+  async function accept(order: ChangeOrder) {
     setBusy(true); setError(null);
     try {
-      const response = await fetch(`/api/agreements/${agreementRef}/change-orders`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "accept", id }) });
+      if (!wallet.address || !order.proposer_signature) throw new Error("This change order cannot be signed from this workspace.");
+      const signedAt = Date.now();
+      const message = changeOrderAcceptanceMessage({ agreementRef, detail: order.detail, id: order.id, proposalSignature: order.proposer_signature, scope: order.scope, signedAt, signer: wallet.address, title: order.title });
+      const signature = await wallet.signMessage(message);
+      const response = await fetch(`/api/agreements/${agreementRef}/change-orders`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "accept", id: order.id, signature, signedAt }) });
       const payload = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(payload.message ?? "Change order could not be accepted.");
       await load();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Change order could not be accepted."); } finally { setBusy(false); }
   }
   return <section className="panel change-order-panel">
-    <header className="panel-header"><div><h2>Mutual change orders</h2><p>Record scope or delivery changes before work continues.</p></div><button className="text-link" type="button" onClick={() => setOpen((value) => !value)}><Plus size={13} /> New change</button></header>
+    <header className="panel-header"><div><h2>Mutual change orders</h2><p>Record a wallet-signed scope or delivery change before work continues.</p></div><button className="text-link" type="button" onClick={() => setOpen((value) => !value)}><Plus size={13} /> New change</button></header>
     {open && <div className="change-order-form"><input value={form.title} placeholder="Change title" onChange={(event) => setForm({ ...form, title: event.target.value })} /><select value={form.scope} onChange={(event) => setForm({ ...form, scope: event.target.value })}><option value="scope">Scope</option><option value="timeline">Timeline</option><option value="delivery">Delivery</option><option value="commercial">Commercial</option></select><textarea value={form.detail} placeholder="Describe what both parties are agreeing to." onChange={(event) => setForm({ ...form, detail: event.target.value })} /><button className="button button-primary" type="button" disabled={busy} onClick={() => void create()}>{busy ? "Saving…" : "Send for approval"}</button></div>}
     {error && <div className="form-error" role="alert">{error}</div>}
-    <div className="change-order-list">{orders.length ? orders.map((order) => <article key={order.id}><span className={order.status === "accepted" ? "accepted" : ""}>{order.status === "accepted" ? <Check size={14} /> : <FilePenLine size={14} />}</span><div><small>{order.scope} · {order.status === "accepted" ? "Mutually accepted" : "Awaiting counterparty"}</small><strong>{order.title}</strong><p>{order.detail}</p></div>{canAcceptChangeOrder(order.proposer_wallet_id, walletId, order.status) && <button className="button button-quiet" type="button" disabled={busy} onClick={() => void accept(order.id)}>Accept</button>}</article>) : <p className="change-order-empty">No proposed changes. The current agreement remains in effect.</p>}</div>
-    <small className="change-order-note">Change orders create a mutual workspace record. They do not alter already locked onchain USDC or escrow terms.</small>
+    <div className="change-order-list">{orders.length ? orders.map((order) => <article key={order.id}><span className={order.status === "accepted" ? "accepted" : ""}>{order.status === "accepted" ? <Check size={14} /> : <FilePenLine size={14} />}</span><div><small>{order.scope} · {order.status === "accepted" ? "Mutually accepted" : "Awaiting counterparty"}</small><strong>{order.title}</strong><p>{order.detail}</p><em className={order.proposer_signature ? "change-order-proof" : "change-order-proof legacy"}>{order.proposer_signature ? <><FileKey2 size={12} /> Proposal signed{order.acceptance_signature ? " · acceptance signed" : ""}</> : "Legacy order · not independently signed"}</em></div>{canAcceptChangeOrder(order.proposer_wallet_id, walletId, order.status) && <button className="button button-quiet" type="button" disabled={busy || !order.proposer_signature} title={order.proposer_signature ? undefined : "Create a new signed change order instead."} onClick={() => void accept(order)}>Sign and accept</button>}</article>) : <p className="change-order-empty">No proposed changes. The current agreement remains in effect.</p>}</div>
+    <small className="change-order-note">Both parties sign the exact terms before a change order is marked accepted. Change orders do not alter already locked onchain USDC or escrow terms.</small>
   </section>;
 }

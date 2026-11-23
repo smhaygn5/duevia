@@ -8,6 +8,7 @@ import { verifyMessage } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { createDisputeBrief } from "../lib/agreements/dispute-brief";
 import { disputeEvidenceMessage, disputeOpeningMessage } from "../lib/agreements/disputes";
+import { changeOrderAcceptanceMessage, changeOrderProposalMessage } from "../lib/agreements/change-order";
 import { ARC } from "../lib/arc/config";
 
 const host = "127.0.0.1";
@@ -96,6 +97,32 @@ function applyLocalDisputeMigrations(agreementRef: string) {
     }
   }
   throw new Error("The local dispute fixture database was not found.");
+}
+
+// Fixture setup only: the hosted environment applies these migrations before deploy.
+function applyLocalChangeOrderMigrations(agreementRef: string) {
+  const d1Directory = resolve(".wrangler/state/v3/d1/miniflare-D1DatabaseObject");
+  const databaseFiles = readdirSync(d1Directory).filter((name) => /^[a-f0-9]+\.sqlite$/i.test(name));
+  for (const databaseFile of databaseFiles) {
+    const database = new DatabaseSync(resolve(d1Directory, databaseFile));
+    try {
+      if (!database.prepare("SELECT id FROM agreements WHERE public_ref = ? LIMIT 1").get(agreementRef)) continue;
+      database.exec(readFileSync(resolve("drizzle", "0006_change_orders.sql"), "utf8"));
+      const columns = database.prepare("SELECT name FROM pragma_table_info('change_orders')").all() as Array<{ name: string }>;
+      const required = ["proposer_signature", "proposer_signed_message", "proposer_address", "proposer_signed_at", "acceptance_signature", "acceptance_signed_message", "acceptance_address", "acceptance_signed_at"];
+      if (required.every((name) => !columns.some((column) => column.name === name))) {
+        database.exec(readFileSync(resolve("drizzle", "0010_change_order_signatures.sql"), "utf8"));
+      } else {
+        for (const name of required.filter((name) => !columns.some((column) => column.name === name))) {
+          database.exec(`ALTER TABLE change_orders ADD COLUMN ${name} ${name.endsWith("_at") ? "INTEGER" : "TEXT"}`);
+        }
+      }
+      return;
+    } finally {
+      database.close();
+    }
+  }
+  throw new Error("The local change order fixture database was not found.");
 }
 
 async function json<T>(
@@ -248,6 +275,48 @@ try {
   assert.ok(detail.data.agreement.provider_wallet_id);
   assert.equal(detail.data.milestones.length, 2);
 
+  applyLocalChangeOrderMigrations(created.data.publicRef);
+  // Both sides sign the same terms. The acceptance is additionally bound to the
+  // exact proposal signature, so it cannot be re-used for a different proposal.
+  const changeOrdersPath = `/api/agreements/${created.data.publicRef}/change-orders`;
+  const changeOrderId = randomUUID();
+  const proposalAt = Date.now();
+  const changeTitle = "Extend first review";
+  const changeDetail = "Extend the first milestone review window by two working days.";
+  const proposalMessage = changeOrderProposalMessage({ agreementRef: created.data.publicRef, detail: changeDetail, id: changeOrderId, scope: "timeline", signedAt: proposalAt, signer: creator.address, title: changeTitle });
+  const proposalSignature = await creator.account.signMessage({ message: proposalMessage });
+  const proposed = await json<{ id: string; status: string }>(changeOrdersPath, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: creator.cookie },
+    body: JSON.stringify({
+      action: "create",
+      id: changeOrderId,
+      title: changeTitle,
+      detail: changeDetail,
+      scope: "timeline",
+      signature: proposalSignature,
+      signedAt: proposalAt,
+    }),
+  });
+  assert.equal(proposed.response.status, 201);
+  const acceptanceAt = Date.now();
+  const acceptanceMessage = changeOrderAcceptanceMessage({ agreementRef: created.data.publicRef, detail: changeDetail, id: changeOrderId, proposalSignature, scope: "timeline", signedAt: acceptanceAt, signer: counterparty.address, title: changeTitle });
+  const acceptedChange = await json<{ id: string; status: string }>(changeOrdersPath, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: counterparty.cookie },
+    body: JSON.stringify({ action: "accept", id: changeOrderId, signature: await counterparty.account.signMessage({ message: acceptanceMessage }), signedAt: acceptanceAt }),
+  });
+  assert.equal(acceptedChange.response.status, 200);
+  const changeOrders = await json<{ orders: Array<{ acceptance_signature: `0x${string}` | null; acceptance_signed_message: string | null; proposer_address: string | null; proposer_signature: `0x${string}` | null; proposer_signed_message: string | null }> }>(changeOrdersPath, { headers: { cookie: creator.cookie } });
+  assert.equal(changeOrders.response.status, 200);
+  const signedOrder = changeOrders.data.orders.find((order) => order.proposer_signed_message === proposalMessage);
+  assert.ok(signedOrder?.proposer_address);
+  assert.ok(signedOrder.proposer_signature);
+  assert.ok(signedOrder.acceptance_signed_message);
+  assert.ok(signedOrder.acceptance_signature);
+  assert.equal(await verifyMessage({ address: signedOrder.proposer_address as `0x${string}`, message: signedOrder.proposer_signed_message!, signature: signedOrder.proposer_signature }), true);
+  assert.equal(await verifyMessage({ address: counterparty.address, message: signedOrder.acceptance_signed_message, signature: signedOrder.acceptance_signature }), true);
+
   const blockedUpload = await fetch(`${baseUrl}/api/deliverables`, {
     method: "POST",
     headers: { cookie: counterparty.cookie },
@@ -390,7 +459,7 @@ try {
   );
   assert.equal(unauthorized.status, 401);
   console.log(
-    `Local flow passed: ${created.data.publicRef}, invitation accepted, protected upload and signed dispute record verified.`,
+    `Local flow passed: ${created.data.publicRef}, invitation accepted, signed change order, protected upload and signed dispute record verified.`,
   );
 } finally {
   await server.close();

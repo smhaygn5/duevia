@@ -204,6 +204,33 @@ test("change order migration restores the production workspace table", () => {
   db.close();
 });
 
+test("signed change order migration preserves legacy orders and stores both wallet records", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+  db.exec(`
+    CREATE TABLE wallets (id TEXT PRIMARY KEY NOT NULL);
+    CREATE TABLE agreements (id TEXT PRIMARY KEY NOT NULL);
+  `);
+  db.exec(migration("0006_change_orders.sql"));
+  db.prepare("INSERT INTO wallets (id) VALUES (?)").run("wallet-client");
+  db.prepare("INSERT INTO agreements (id) VALUES (?)").run("agreement-1");
+  db.prepare(
+    `INSERT INTO change_orders (id, agreement_id, proposer_wallet_id, title, detail, scope, status, created_at, updated_at)
+     VALUES ('legacy', 'agreement-1', 'wallet-client', 'Extend review', 'Add two review days.', 'timeline', 'pending', 100, 100)`,
+  ).run();
+  db.exec(migration("0010_change_order_signatures.sql"));
+  const legacy = db.prepare("SELECT proposer_signature, acceptance_signature FROM change_orders WHERE id = 'legacy'").get() as Record<string, unknown>;
+  assert.equal(legacy.proposer_signature, null);
+  assert.equal(legacy.acceptance_signature, null);
+  db.prepare(
+    `UPDATE change_orders SET proposer_signature = ?, proposer_signed_message = ?, proposer_address = ?, proposer_signed_at = ?, acceptance_signature = ?, acceptance_signed_message = ?, acceptance_address = ?, acceptance_signed_at = ? WHERE id = 'legacy'`,
+  ).run("0xabc", "proposal message", "0x0000000000000000000000000000000000000001", 101, "0xdef", "acceptance message", "0x0000000000000000000000000000000000000002", 102);
+  const signed = db.prepare("SELECT proposer_signed_message, acceptance_signed_message FROM change_orders WHERE id = 'legacy'").get() as Record<string, unknown>;
+  assert.equal(signed.proposer_signed_message, "proposal message");
+  assert.equal(signed.acceptance_signed_message, "acceptance message");
+  db.close();
+});
+
 test("signed message migration keeps legacy dispute events and stores exact messages for new ones", () => {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");

@@ -237,6 +237,32 @@ async function ensureMilestoneColumns(db: D1Database) {
   await ensureMilestoneColumn(db, "dependency_position", "INTEGER");
   await ensureMilestoneColumn(db, "acceptance_checklist", "TEXT NOT NULL DEFAULT '[]'");
   await ensureDisputeEventColumns(db);
+  await ensureChangeOrderColumns(db);
+}
+
+async function ensureChangeOrderColumns(db: D1Database) {
+  const table = await db
+    .prepare(`SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type = 'table' AND name = 'change_orders'`)
+    .first<{ table_count: number }>();
+  if (Number(table?.table_count ?? 0) === 0) return;
+  for (const name of [
+    "proposer_signature",
+    "proposer_signed_message",
+    "proposer_address",
+    "proposer_signed_at",
+    "acceptance_signature",
+    "acceptance_signed_message",
+    "acceptance_address",
+    "acceptance_signed_at",
+  ]) {
+    const column = await db
+      .prepare(`SELECT COUNT(*) AS column_count FROM pragma_table_info('change_orders') WHERE name = ?`)
+      .bind(name)
+      .first<{ column_count: number }>();
+    if (Number(column?.column_count ?? 0) === 0) {
+      await db.prepare(`ALTER TABLE change_orders ADD COLUMN ${name} ${name.endsWith("_at") ? "INTEGER" : "TEXT"}`).run();
+    }
+  }
 }
 
 /**
