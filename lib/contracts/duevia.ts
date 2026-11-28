@@ -37,17 +37,20 @@ export const dueviaEscrowAbi = parseAbi([
   "error RevisionLimitReached()",
   "error WorkAlreadyStarted()",
   "error TokenTransferMismatch()",
+  "error InvalidPayoutRecipient()",
   "event AgreementFunded(bytes32 indexed agreementRef, uint256 amount)",
   "event MilestoneStarted(bytes32 indexed agreementRef, uint256 indexed milestoneIndex)",
   "event MilestoneSubmitted(bytes32 indexed agreementRef, uint256 indexed milestoneIndex, bytes32 indexed submissionRef, uint64 reviewDeadline)",
   "event ChangesRequested(bytes32 indexed agreementRef, uint256 indexed milestoneIndex, uint8 revisionsUsed)",
   "event MilestoneReleased(bytes32 indexed agreementRef, uint256 indexed milestoneIndex, uint256 amount)",
+  "event PayoutRecipientUpdated(bytes32 indexed agreementRef, address indexed previousRecipient, address indexed nextRecipient)",
   "event CancellationApproval(bytes32 indexed agreementRef, address indexed party, bool approved)",
   "event AgreementSettled(bytes32 indexed agreementRef, uint8 state, uint256 releasedAmount, uint256 refundedAmount)",
   "function state() view returns (uint8)",
   "function agreementRef() view returns (bytes32)",
   "function client() view returns (address)",
   "function provider() view returns (address)",
+  "function payoutRecipient() view returns (address)",
   "function currentMilestone() view returns (uint256)",
   "function totalAmount() view returns (uint256)",
   "function nonDeliveryGracePeriod() view returns (uint64)",
@@ -55,6 +58,7 @@ export const dueviaEscrowAbi = parseAbi([
   "function getMilestone(uint256 index) view returns (bytes32 milestoneRef, uint256 amount, uint64 dueDate, uint32 reviewWindow, uint8 revisionLimit, uint8 revisionsUsed, uint64 submittedAt, uint8 state)",
   "function revisionDeadline(uint256 index) view returns (uint64)",
   "function fund()",
+  "function setPayoutRecipient(address nextRecipient)",
   "function startCurrentMilestone()",
   "function submit(uint256 milestoneIndex, bytes32 submissionRef)",
   "function requestChanges(uint256 milestoneIndex)",
@@ -201,6 +205,9 @@ export function formatContractError(
   if (detail.includes("tokentransfermismatch")) {
     return "The USDC transfer did not match the agreement amount. Check the wallet balance and allowance.";
   }
+  if (detail.includes("invalidpayoutrecipient")) {
+    return "Choose a non-zero wallet address that is different from this escrow contract.";
+  }
   return fallback;
 }
 
@@ -255,6 +262,7 @@ export async function approveAgreementUsdc(
 
 export type EscrowWriteAction =
   | { name: "fund"; args: [] }
+  | { name: "setPayoutRecipient"; args: [Address] }
   | { name: "startCurrentMilestone"; args: [] }
   | { name: "submit"; args: [bigint, Hex] }
   | { name: "requestChanges"; args: [bigint] }
@@ -281,6 +289,15 @@ export async function writeEscrowAction(
     },
     onSubmitted,
   );
+}
+
+export async function readEscrowPayoutRecipient(escrow: Address) {
+  const client = createDueviaPublicClient();
+  return client.readContract({
+    address: escrow,
+    abi: dueviaEscrowAbi,
+    functionName: "payoutRecipient",
+  });
 }
 
 export async function readFundingState(

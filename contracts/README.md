@@ -10,6 +10,7 @@ Implemented settlement paths:
 - client approves and releases submitted work;
 - client can request revisions up to the agreed limit;
 - provider can release submitted work after an unanswered review window;
+- provider can set a separate recipient wallet for future USDC releases if the original address cannot receive USDC;
 - client can recover remaining funds after a missed delivery deadline;
 - client can cancel before work starts;
 - both parties can cancel mutually after partial completion.
@@ -28,5 +29,9 @@ Arc Testnet deployment:
 - USDC: `0x3600000000000000000000000000000000000000`
 - Chain ID: `5042002`
 - Deployment record: `deployments/arc-testnet.json`
+
+The currently deployed factory predates the configurable release-recipient
+feature. Deploy a new factory before creating escrows that use it; existing
+escrows keep their original immutable provider recipient.
 
 `DueviaEscrow.sol` is unaudited and is not approved for production funds.

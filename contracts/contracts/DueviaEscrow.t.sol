@@ -14,6 +14,7 @@ contract DueviaEscrowTest is Test {
 
   address private client = makeAddr("client");
   address private provider = makeAddr("provider");
+  address private recoveryRecipient = makeAddr("recoveryRecipient");
   address private stranger = makeAddr("stranger");
 
   MockUSDC private usdc;
@@ -172,6 +173,37 @@ contract DueviaEscrowTest is Test {
     vm.expectRevert(DueviaEscrow.NotCurrentMilestone.selector);
     vm.prank(client);
     escrow.approveAndRelease(0);
+  }
+
+  function test_ProviderCanSetAlternatePayoutRecipient() public {
+    _fund();
+
+    vm.prank(provider);
+    escrow.setPayoutRecipient(recoveryRecipient);
+
+    assertEq(escrow.payoutRecipient(), recoveryRecipient);
+    _startAndSubmit(0, "recovery-recipient-release");
+    vm.prank(client);
+    escrow.approveAndRelease(0);
+
+    assertEq(usdc.balanceOf(provider), 0);
+    assertEq(usdc.balanceOf(recoveryRecipient), FIRST_AMOUNT);
+  }
+
+  function test_OnlyProviderCanSetAValidPayoutRecipient() public {
+    _fund();
+
+    vm.expectRevert(DueviaEscrow.Unauthorized.selector);
+    vm.prank(client);
+    escrow.setPayoutRecipient(recoveryRecipient);
+
+    vm.expectRevert(DueviaEscrow.InvalidPayoutRecipient.selector);
+    vm.prank(provider);
+    escrow.setPayoutRecipient(address(0));
+
+    vm.expectRevert(DueviaEscrow.InvalidPayoutRecipient.selector);
+    vm.prank(provider);
+    escrow.setPayoutRecipient(address(escrow));
   }
 
   function test_TimeoutCannotBeClaimedEarly() public {

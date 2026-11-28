@@ -73,7 +73,10 @@ Başlıca tehditler:
 - D1 kayıtları doğrulanmış Arc receipt’i olmadan final olarak işaretlenmez.
 - R2 bucket public değildir; indirme yetkisi agreement rolüyle doğrulanır.
 - USDC transferinin karşı tarafın Circle uyum kontrolleri nedeniyle reddedilmesi
-  durumunda alternatif alıcı adresiyle kontrolleri aşan bir yol sunulmaz.
+  durumunda sağlayıcı, gelecekteki release işlemleri için kendi yetkisini
+  değiştirmeden ayrı bir alıcı cüzdan tanımlayabilir. Bu yol yalnız yeni escrow
+  dağıtımlarında kullanılabilir ve alternatif alıcının da USDC kabul edeceği
+  garanti edilmez.
 - Dosya tipi uzantı yerine içerik imzasıyla kontrol edilir ve boyut sınırlıdır.
 - Loglarda imza, private key, nonce, dosya URL’si veya özel iş metni tutulmaz.
 - `frame-ancestors`, MIME sniffing, referrer ve tarayıcı izin başlıkları eklenmiştir.
@@ -104,7 +107,7 @@ Başlıca tehditler:
 | --- | --- | --- |
 | Sözleşme denetimsiz | Yüksek | Audit öncesi yalnız testnet |
 | İnsan uyuşmazlığı | Ürün sınırı | MVP’de otomatik hakem yok; açıkça anlat |
-| USDC transfer kısıtları | Ürün sınırı | Kısıtlı/sanctioned alıcı için alternatif payout yolu sunma |
+| USDC transfer kısıtları | Kısmen azaltıldı | Sağlayıcı yeni escrow’da alternatif release alıcısı tanımlayabilir; alıcının USDC kabul etmesi ayrıca doğrulanmalı |
 | Public RPC rate limit | Gözlendi | Retry, yedek ve sağlık izlemesi |
 | Paket açıkları | Upstream uyarılar mevcut | Kilitli sürümleri izlemeye devam et; kırıcı zorlamadan kaçın |
 | Zararlı dosya taraması yok | Testnet boyut/MIME/hash koruması var | Production upload pipeline’ına tarama ekle |

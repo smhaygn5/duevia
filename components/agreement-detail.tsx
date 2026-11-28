@@ -23,6 +23,7 @@ import { demoAgreement } from "@/lib/demo-data";
 import { agreementActivityDigest } from "@/lib/agreements/activity-digest";
 import { publicProofUrl } from "@/lib/agreements/public-proof";
 import { ChangeOrderPanel } from "./change-order-panel";
+import { PayoutRecipientPanel } from "./payout-recipient-panel";
 import { DisputeResolutionRoom } from "./dispute-resolution-room";
 import { agreementBriefFilename, agreementBriefText } from "@/lib/agreements/brief-export";
 import { deliveryPulse } from "@/lib/agreements/delivery-pulse";
@@ -486,6 +487,7 @@ export function AgreementDetail({ agreementRef }: { agreementRef: string }) {
             </div>
           </section>
           {!isDemo && <ChangeOrderPanel agreementRef={detail.publicRef} />}
+          {!isDemo && detail.currentRole === "provider" && detail.contractAddress && <PayoutRecipientPanel escrow={detail.contractAddress as `0x${string}`} />}
           <DisputeResolutionRoom
             agreementRef={detail.publicRef}
             demo={isDemo}

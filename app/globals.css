@@ -4411,6 +4411,16 @@ button:disabled,
 .change-order-list p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 5px 0 0; }
 .change-order-proof { align-items: center; color: var(--success); display: flex; font-size: 12px; font-style: normal; font-weight: 650; gap: 5px; margin-top: 8px; }
 .change-order-proof.legacy { color: var(--warning); }
+
+.payout-recipient-panel { display: grid; gap: 16px; }
+.payout-recipient-current { align-items: center; background: var(--muted-soft); border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 3px; padding: 12px 14px; }
+.payout-recipient-current span, .payout-recipient-current a, .payout-recipient-loading { color: var(--muted); font-size: 12px; }
+.payout-recipient-current strong { font-feature-settings: "tnum"; font-size: 14px; letter-spacing: .02em; }
+.payout-recipient-current a { align-items: center; display: inline-flex; gap: 4px; width: fit-content; }
+.payout-recipient-actions { align-items: center; display: flex; gap: 14px; justify-content: space-between; }
+.payout-recipient-actions > div, .payout-recipient-message { align-items: center; color: var(--muted); display: flex; font-size: 12px; gap: 7px; margin: 0; }
+.payout-recipient-message { color: var(--success); }
+@media (max-width: 620px) { .payout-recipient-actions { align-items: stretch; flex-direction: column; } .payout-recipient-actions .button { width: 100%; } }
 .change-order-list .button { font-size: 12px; min-height: 31px; padding: 7px 10px; }
 .change-order-empty { color: var(--muted); font-size: 12px; margin: 3px 0 0; }
 .change-order-note { border-top: 1px solid var(--line); color: var(--muted); display: block; font-size: 12px; line-height: 1.45; margin-top: 4px; padding-top: 13px; }

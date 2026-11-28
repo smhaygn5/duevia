@@ -53,10 +53,12 @@ contract DueviaEscrow is ReentrancyGuard {
   error RevisionLimitReached();
   error WorkAlreadyStarted();
   error TokenTransferMismatch();
+  error InvalidPayoutRecipient();
 
   IERC20 public immutable usdc;
   address public immutable client;
   address public immutable provider;
+  address public payoutRecipient;
   bytes32 public immutable agreementRef;
   uint64 public immutable nonDeliveryGracePeriod;
   uint256 public immutable totalAmount;
@@ -91,6 +93,11 @@ contract DueviaEscrow is ReentrancyGuard {
     bytes32 indexed agreementRef,
     uint256 indexed milestoneIndex,
     uint256 amount
+  );
+  event PayoutRecipientUpdated(
+    bytes32 indexed agreementRef,
+    address indexed previousRecipient,
+    address indexed nextRecipient
   );
   event CancellationApproval(
     bytes32 indexed agreementRef,
@@ -158,6 +165,7 @@ contract DueviaEscrow is ReentrancyGuard {
     usdc = usdc_;
     client = client_;
     provider = provider_;
+    payoutRecipient = provider_;
     agreementRef = agreementRef_;
     nonDeliveryGracePeriod = nonDeliveryGracePeriod_;
 
@@ -221,6 +229,24 @@ contract DueviaEscrow is ReentrancyGuard {
 
     state = AgreementState.Active;
     emit AgreementFunded(agreementRef, totalAmount);
+  }
+
+  /// @notice Lets the provider direct future milestone releases to an alternate wallet.
+  /// @dev This is useful when the original provider address cannot receive USDC.
+  /// It never changes the provider's authority over delivery actions.
+  function setPayoutRecipient(
+    address nextRecipient
+  ) external onlyProvider whenOperational {
+    if (nextRecipient == address(0) || nextRecipient == address(this)) {
+      revert InvalidPayoutRecipient();
+    }
+    address previousRecipient = payoutRecipient;
+    payoutRecipient = nextRecipient;
+    emit PayoutRecipientUpdated(
+      agreementRef,
+      previousRecipient,
+      nextRecipient
+    );
   }
 
   function startCurrentMilestone() external onlyProvider whenOperational {
@@ -376,7 +402,7 @@ contract DueviaEscrow is ReentrancyGuard {
       state = AgreementState.Completed;
     }
 
-    usdc.safeTransfer(provider, amount);
+    usdc.safeTransfer(payoutRecipient, amount);
     emit MilestoneReleased(agreementRef, milestoneIndex, amount);
 
     if (state == AgreementState.Completed) {
